@@ -318,7 +318,7 @@ async function submitManualOverride() {
     setActiveVotingMode();
     renderSection(state.currentSectionIndex);
     closeManualOverrideModal();
-    startKioskCountdown(90);
+    startKioskCountdown((state.election && state.election.kiosk_timeout) || 90);
   } catch (error) {
     console.error('Failed to start session:', error);
     if (errorDiv) {

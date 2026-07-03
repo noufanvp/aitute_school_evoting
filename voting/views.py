@@ -104,6 +104,7 @@ def _serialize_election(election):
 		"school_name": election.school_name,
 		"school_slug": election.school_slug,
 		"logo_url": election.logo_url,
+		"kiosk_timeout": election.kiosk_timeout,
 		"positions": positions,
 	}
 
@@ -984,13 +985,13 @@ def api_invigilator_activate_kiosk(request):
 		status__in=[KioskSession.STATUS_PENDING, KioskSession.STATUS_ACTIVE],
 	).update(status=KioskSession.STATUS_CANCELLED)
 
-	# Create new kiosk session (90 second window)
+	# Create new kiosk session (dynamic window based on election settings)
 	session = KioskSession.objects.create(
 		election=election,
 		kiosk_id=kiosk_id,
 		student_id_hash=student_hash,
 		activated_by=request.user,
-		expires_at=timezone.now() + timezone.timedelta(seconds=90),
+		expires_at=timezone.now() + timezone.timedelta(seconds=election.kiosk_timeout),
 	)
 
 	return JsonResponse({

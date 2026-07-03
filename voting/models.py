@@ -37,6 +37,10 @@ class Election(models.Model):
 	starts_at = models.DateTimeField(null=True, blank=True)
 	ends_at = models.DateTimeField(null=True, blank=True)
 	results_published = models.BooleanField(default=False)
+	kiosk_timeout = models.PositiveIntegerField(
+		default=90,
+		help_text="Kiosk timeout in seconds for voting sessions.",
+	)
 	manual_override_password_hash = models.CharField(
 		max_length=256,
 		blank=True,

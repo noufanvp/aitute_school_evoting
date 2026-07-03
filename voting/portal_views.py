@@ -136,6 +136,14 @@ def portal_election_create(request):
         starts_at = request.POST.get("starts_at") or None
         ends_at = request.POST.get("ends_at") or None
         logo_file = request.FILES.get("logo")
+        kiosk_timeout_val = request.POST.get("kiosk_timeout", "").strip()
+
+        try:
+            kiosk_timeout = int(kiosk_timeout_val) if kiosk_timeout_val else 90
+            if kiosk_timeout <= 0:
+                kiosk_timeout = 90
+        except ValueError:
+            kiosk_timeout = 90
 
         errors = {}
         if not title:
@@ -156,6 +164,7 @@ def portal_election_create(request):
                 status=status,
                 starts_at=starts_at,
                 ends_at=ends_at,
+                kiosk_timeout=kiosk_timeout,
             )
             if manual_override_password:
                 election.set_manual_override_password(manual_override_password)
@@ -166,7 +175,7 @@ def portal_election_create(request):
 
         return redirect("portal-positions", election_id=election.id)
 
-    return render(request, "portal/election_form.html", {"is_create": True, "form": {}})
+    return render(request, "portal/election_form.html", {"is_create": True, "form": {"kiosk_timeout": 90}})
 
 
 @_superuser_required
@@ -185,6 +194,14 @@ def portal_election_edit(request, election_id):
         results_published = request.POST.get("results_published") == "on"
         logo_file = request.FILES.get("logo")
         remove_logo = request.POST.get("remove_logo") == "on"
+        kiosk_timeout_val = request.POST.get("kiosk_timeout", "").strip()
+
+        try:
+            kiosk_timeout = int(kiosk_timeout_val) if kiosk_timeout_val else 90
+            if kiosk_timeout <= 0:
+                kiosk_timeout = 90
+        except ValueError:
+            kiosk_timeout = 90
 
         errors = {}
         if not title:
@@ -206,6 +223,7 @@ def portal_election_edit(request, election_id):
             election.starts_at = starts_at
             election.ends_at = ends_at
             election.results_published = results_published
+            election.kiosk_timeout = kiosk_timeout
 
             if clear_manual_override_password:
                 election.clear_manual_override_password()
@@ -240,6 +258,7 @@ def portal_election_edit(request, election_id):
             "ends_at": election.ends_at.strftime("%Y-%m-%dT%H:%M") if election.ends_at else "",
             "results_published": election.results_published,
             "has_manual_override_password": bool(election.manual_override_password_hash),
+            "kiosk_timeout": election.kiosk_timeout,
         },
     })
 

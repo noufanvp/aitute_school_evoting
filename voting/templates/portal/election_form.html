@@ -140,6 +140,20 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label" for="kiosk_timeout">
+            Kiosk Timeout (seconds) <span class="required">*</span>
+            <span class="form-hint">Duration in seconds that an activated kiosk remains active before timing out. Default is 90 seconds.</span>
+          </label>
+          <input type="number" id="kiosk_timeout" name="kiosk_timeout"
+                 class="form-input {% if errors.kiosk_timeout %}input-error{% endif %}"
+                 value="{{ form.kiosk_timeout|default:90 }}"
+                 min="10" max="3600"
+                 placeholder="90"
+                 required />
+          {% if errors.kiosk_timeout %}<span class="field-error">{{ errors.kiosk_timeout }}</span>{% endif %}
+        </div>
+
+        <div class="form-group">
           <label class="form-label" for="manual_override_password">
             Manual Override Password
             <span class="form-hint">used on kiosk fallback instead of student ID</span>

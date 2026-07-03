@@ -1061,3 +1061,70 @@ class KioskConcurrencyAndDeviceLockTests(TestCase):
 		self.assertEqual(response_ping.status_code, 401)
 		self.assertEqual(response_ping.json()["status"], "logged_out")
 
+
+class KioskTimeoutCustomizationTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		User = get_user_model()
+		from .models import Student, Election
+		
+		# Create Superuser
+		self.superuser = User.objects.create_superuser(
+			username="admin", password="password123"
+		)
+		
+		# Create Invigilator
+		self.invigilator = User.objects.create_user(
+			username="invigilator1", password="password123"
+		)
+		self.invigilator_profile = self.invigilator.profile
+		self.invigilator_profile.role = "invigilator"
+		self.invigilator_profile.school_slug = "test-school"
+		self.invigilator_profile.save()
+		
+		# Create Election
+		self.election = Election.objects.create(
+			title="School President",
+			school_name="Test School",
+			school_slug="test-school",
+			status=Election.STATUS_OPEN,
+			kiosk_timeout=120,  # 120 seconds instead of default 90
+		)
+		
+		# Create Student
+		self.student = Student.objects.create(
+			election=self.election,
+			name="John Doe",
+			student_class="10",
+			division="A",
+			student_id="12345"
+		)
+
+	def test_kiosk_activation_respects_custom_timeout(self):
+		self.client.force_login(self.invigilator)
+		response = self.client.post(
+			reverse("api-invigilator-activate-kiosk"),
+			data=json.dumps({
+				"student_id": "12345",
+				"kiosk_id": "kiosk1",
+				"school_slug": "test-school"
+			}),
+			content_type="application/json"
+		)
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()["status"], "activated")
+		
+		# Verify KioskSession has correct expires_at
+		session_id = response.json()["session_id"]
+		from .models import KioskSession
+		session = KioskSession.objects.get(id=session_id)
+		duration = (session.expires_at - session.created_at).total_seconds()
+		# Should be approximately 120 seconds
+		self.assertAlmostEqual(duration, 120, delta=2)
+
+	def test_serialized_election_contains_timeout(self):
+		from .views import _serialize_election
+		serialized = _serialize_election(self.election)
+		self.assertEqual(serialized["kiosk_timeout"], 120)
+
+
