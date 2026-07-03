@@ -1338,3 +1338,10 @@ def api_invigilator_cancel_session(request):
 		return JsonResponse({"status": "cancelled"})
 	# Session already completed or does not exist — treat as success (idempotent)
 	return JsonResponse({"status": "already_resolved"})
+
+
+def logout_view(request):
+	"""Custom logout view that handles both GET and POST requests cleanly."""
+	from django.contrib.auth import logout as auth_logout
+	auth_logout(request)
+	return redirect("login")

@@ -4,11 +4,12 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path, re_path
 from django.views.static import serve
+from voting import views as voting_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/login/', auth_views.LoginView.as_view(), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    path('accounts/logout/', voting_views.logout_view, name='logout'),
     path('portal/', include('voting.portal_urls')),
     path('', include('voting.urls')),
 ]
