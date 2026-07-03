@@ -1,0 +1,204 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Students{% endblock %}
+
+{% block breadcrumb %}
+  <a class="bc-item" href="{% url 'portal-home' %}">Dashboard</a>
+  <span class="bc-sep">/</span>
+  <span class="bc-item active">{{ election.school_name }} Students</span>
+{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'portal-student-import' election.id %}" class="btn btn-secondary">Import Excel</a>
+  <button id="openAddStudentModalBtn" class="btn btn-primary">Add Student</button>
+{% endblock %}
+
+{% block content %}
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon">👥</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ total }}</div>
+      <div class="stat-label">Total Students</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ voted_count }}</div>
+      <div class="stat-label">Voted</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">⏳</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ pending_count }}</div>
+      <div class="stat-label">Pending</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <div class="section-card-header">
+    <div>
+      <h2 class="section-card-title">{{ election.school_name }} Student Roster</h2>
+      <p class="hint-text">Election: {{ election.title }}</p>
+    </div>
+  </div>
+
+  {% if students_data %}
+    <div style="overflow:auto; border:1px solid var(--border); border-radius:var(--r-sm)">
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+          <tr style="background:var(--surface-2); color:var(--text-muted);">
+            <th style="text-align:left; padding:10px 12px;">Name</th>
+            <th style="text-align:left; padding:10px 12px;">Class</th>
+            <th style="text-align:left; padding:10px 12px;">Division</th>
+            <th style="text-align:left; padding:10px 12px;">Student ID</th>
+            <th style="text-align:left; padding:10px 12px;">Status</th>
+            <th style="text-align:right; padding:10px 12px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in students_data %}
+            <tr style="border-top:1px solid var(--border)">
+              <td style="padding:10px 12px; font-weight:600;">{{ row.obj.name }}</td>
+              <td style="padding:10px 12px;">{{ row.obj.student_class }}</td>
+              <td style="padding:10px 12px;">{{ row.obj.division|default:'-' }}</td>
+              <td style="padding:10px 12px; font-family:monospace;">{{ row.obj.student_id|default:'-' }}</td>
+              <td style="padding:10px 12px;">
+                {% if row.has_voted %}
+                  <span class="status-badge status-open">Voted</span>
+                {% else %}
+                  <span class="status-badge status-draft">Pending</span>
+                {% endif %}
+              </td>
+              <td style="padding:10px 12px; text-align:right;">
+                <a href="{% url 'portal-student-edit' row.obj.id %}" class="btn btn-xs btn-ghost">Edit</a>
+                <form method="post" action="{% url 'portal-student-delete' row.obj.id %}" style="display:inline" onsubmit="return confirm('Delete this student?')">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-xs btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state" style="padding:32px;">
+      <div class="empty-icon">🎓</div>
+      <h3>No students added yet</h3>
+      <p>Use Add Student or Import Excel to build this election roster.</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal-backdrop" id="addStudentModal" style="display:none">
+  <div class="modal-box" style="max-width: 460px;">
+    <h3 class="modal-title">Add Student</h3>
+    <p class="modal-sub">Add a new student to this election roster.</p>
+    
+    <form id="addStudentForm" style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="form-group">
+        <label class="form-label" for="addStudentName">Full Name <span class="required">*</span></label>
+        <input id="addStudentName" class="form-input" type="text" placeholder="e.g. John Doe" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="addStudentClass">Class <span class="required">*</span></label>
+        <input id="addStudentClass" class="form-input" type="text" placeholder="e.g. 10" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="addStudentDivision">Division</label>
+        <input id="addStudentDivision" class="form-input" type="text" placeholder="e.g. A" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="addStudentId">Student ID / Admission Number</label>
+        <input id="addStudentId" class="form-input" type="text" placeholder="e.g. S1024" />
+      </div>
+      
+      <div id="addStudentError" style="color: var(--danger); font-size: 12px; display: none; font-weight: 600;"></div>
+      
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeAddStudentModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="confirmAddStudentBtn">Add Student</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAddStudentModal() {
+  document.getElementById('addStudentForm').reset();
+  document.getElementById('addStudentError').style.display = 'none';
+  document.getElementById('addStudentModal').style.display = 'flex';
+}
+
+function closeAddStudentModal() {
+  document.getElementById('addStudentModal').style.display = 'none';
+}
+
+document.getElementById('openAddStudentModalBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  openAddStudentModal();
+});
+
+document.getElementById('addStudentModal').addEventListener('click', (e) => {
+  if (e.target.id === 'addStudentModal') closeAddStudentModal();
+});
+
+document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('addStudentName').value.trim();
+  const cls = document.getElementById('addStudentClass').value.trim();
+  const div = document.getElementById('addStudentDivision').value.trim();
+  const sid = document.getElementById('addStudentId').value.trim();
+  
+  const errEl = document.getElementById('addStudentError');
+  errEl.style.display = 'none';
+  
+  const btn = document.getElementById('confirmAddStudentBtn');
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  
+  try {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('student_class', cls);
+    formData.append('division', div);
+    formData.append('student_id', sid);
+    
+    const res = await fetch("{% url 'portal-student-create' election.id %}", {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'x-requested-with': 'XMLHttpRequest'
+      },
+      body: formData
+    });
+    
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.errors) {
+        const firstErr = Object.values(data.errors)[0];
+        throw new Error(firstErr);
+      }
+      throw new Error(data.detail || 'Failed to add student.');
+    }
+    
+    showToast('Student added successfully.');
+    closeAddStudentModal();
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add Student';
+  }
+});
+</script>
+{% endblock %}

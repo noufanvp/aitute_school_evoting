@@ -1,0 +1,10 @@
+{% extends "portal/base.html" %}
+{% block title %}403 Forbidden{% endblock %}
+{% block content %}
+<div class="portal-403">
+  <div style="font-size:64px;margin-bottom:16px">🔒</div>
+  <h2>Access Denied</h2>
+  <p style="color:var(--text-muted);margin:12px 0 24px">This portal requires superuser privileges.</p>
+  <a href="/" class="btn btn-ghost">← Back to Kiosk</a>
+</div>
+{% endblock %}

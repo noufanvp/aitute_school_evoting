@@ -1,0 +1,59 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{% if is_create %}Add Student{% else %}Edit Student{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+  <a class="bc-item" href="{% url 'portal-home' %}">Dashboard</a>
+  <span class="bc-sep">/</span>
+  <a class="bc-item" href="{% url 'portal-students' election.id %}">Students</a>
+  <span class="bc-sep">/</span>
+  <span class="bc-item active">{% if is_create %}Add{% else %}Edit{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    <div class="form-card-header">
+      <div class="form-card-icon">🎓</div>
+      <div>
+        <h1 class="form-card-title">{% if is_create %}Add Student{% else %}Edit Student{% endif %}</h1>
+        <p class="form-card-sub">{{ election.school_name }} · {{ election.title }}</p>
+      </div>
+    </div>
+
+    <form method="post" class="portal-form">
+      {% csrf_token %}
+      <div class="form-section">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="name">Name</label>
+            <input class="form-input {% if errors.name %}input-error{% endif %}" id="name" name="name" type="text" value="{{ form.name|default:'' }}" required />
+            {% if errors.name %}<div class="field-error">{{ errors.name }}</div>{% endif %}
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="student_id">Student ID</label>
+            <input class="form-input" id="student_id" name="student_id" type="text" value="{{ form.student_id|default:'' }}" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="student_class">Class</label>
+            <input class="form-input {% if errors.student_class %}input-error{% endif %}" id="student_class" name="student_class" type="text" value="{{ form.student_class|default:'' }}" required />
+            {% if errors.student_class %}<div class="field-error">{{ errors.student_class }}</div>{% endif %}
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="division">Division</label>
+            <input class="form-input" id="division" name="division" type="text" value="{{ form.division|default:'' }}" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'portal-students' election.id %}" class="btn btn-ghost">Back</a>
+        <button type="submit" class="btn btn-primary">{% if is_create %}Create Student{% else %}Save Changes{% endif %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

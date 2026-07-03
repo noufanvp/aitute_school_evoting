@@ -1,0 +1,28 @@
+# ── Core Framework ─────────────────────────────────────────────────────────
+Django>=5.0,<6.0                 # Tested on 5.2.x; <6.0 prevents resolving to Django 6 on Render
+djangorestframework>=3.14.0      # 3.16.1 is installed
+
+# ── Database ────────────────────────────────────────────────────────────────
+# psycopg2-binary is the Render-free-tier-safe driver (pure binary wheel).
+# psycopg (v3) is kept for local dev parity; Render uses psycopg2-binary.
+psycopg2-binary>=2.9.9
+dj-database-url>=2.1.0           # 3.0.1 is installed; conn_health_checks arg available
+
+# ── WSGI Server ────────────────────────────────────────────────────────────
+gunicorn>=21.2.0                  # 23.0.0 is installed
+
+# ── Static Files ───────────────────────────────────────────────────────────
+whitenoise>=6.6.0                 # 6.11.0 is installed
+
+# ── Utilities ──────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0              # 1.1.1 is installed
+
+# ── Image Processing ────────────────────────────────────────────────────────
+Pillow>=10.0.0                    # Required for ImageField (Election logo) and image validation
+
+# ── Cloud Media Storage ──────────────────────────────────────────────────────
+cloudinary>=1.36.0                # Cloudinary Python SDK
+django-cloudinary-storage>=0.3.0  # Django storage backend for Cloudinary
+
+# ── Excel Import ─────────────────────────────────────────────────────────────
+openpyxl>=3.1.0                   # Student bulk import/export template support

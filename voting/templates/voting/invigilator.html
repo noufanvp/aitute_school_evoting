@@ -1,0 +1,1155 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invigilator Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f3f7ff;
+      --surface: #ffffff;
+      --surface-2: #eef3ff;
+      --border: #d8e1f2;
+      --text: #12213f;
+      --muted: #5f6f94;
+      --primary: #0f5ad6;
+      --primary-soft: #d9e8ff;
+      --success: #148449;
+      --warn: #a56700;
+      --danger: #c72f3b;
+      --shadow: 0 10px 28px rgba(23, 56, 112, 0.08);
+      --r: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 0 0, #e9f0ff 0%, var(--bg) 45%, #f5f8ff 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: linear-gradient(120deg, #0f4db8, #1570f3);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 8px 22px rgba(21, 77, 177, 0.35);
+    }
+
+    .hdr-title {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .hdr-sub {
+      font-size: 12px;
+      opacity: 0.86;
+      margin-top: 2px;
+    }
+
+    .hdr-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .clock {
+      text-align: right;
+      min-width: 130px;
+    }
+
+    .clock-time {
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .clock-date {
+      font-size: 11px;
+      opacity: 0.86;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f59e0b;
+    }
+
+    .dot.online {
+      background: #22c55e;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-danger {
+      background: #fde8ea;
+      color: var(--danger);
+      border: 1px solid #f9cfd3;
+    }
+
+    .page {
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 0 20px 24px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-num {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-lbl {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+
+    .card-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .kiosk-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+    }
+
+    .kiosk-chip {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .filters {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr)) 1.2fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .field input,
+    .field select {
+      height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0 10px;
+      background: #fff;
+      font-family: inherit;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-top: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+    }
+
+    thead th {
+      border-top: none;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    tbody tr:hover {
+      background: #f8fbff;
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge-voted {
+      background: #dcfce7;
+      color: var(--success);
+    }
+
+    .badge-pending {
+      background: #fff5d9;
+      color: var(--warn);
+    }
+
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 26, 54, 0.6);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 12px;
+    }
+
+    .modal-bg.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(560px, 96vw);
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 60px rgba(15, 35, 82, 0.24);
+      padding: 18px;
+    }
+
+    .modal h3 {
+      margin: 0 0 8px;
+    }
+
+    .modal p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .kiosk-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 12px;
+    }
+
+    .pick {
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      border-radius: 999px;
+      padding: 8px 11px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .pick.active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .countdown {
+      display: none;
+      background: #eff6ff;
+      border: 1px solid #c8dbff;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .countdown-num {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1;
+    }
+
+    .toast-wrap {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      border-radius: 10px;
+      padding: 10px 12px;
+      min-width: 230px;
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .toast.err {
+      border-left-color: var(--danger);
+    }
+
+    body.role-teacher #activeKiosksSection,
+    body.role-teacher #openVoterWindowBtn,
+    body.role-teacher .action-header,
+    body.role-teacher .action-cell {
+      display: none !important;
+    }
+
+    body.role-invigilator #openAddStudentModalBtn,
+    body.role-invigilator #openImportStudentsModalBtn {
+      display: none !important;
+    }
+
+    @media (max-width: 1080px) {
+      .stats {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+      }
+
+      .filters {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body class="{% if request.user.is_superuser %}role-admin{% else %}role-{{ request.user.profile.role }}{% endif %}">
+  <header class="header">
+    <div>
+      <div class="hdr-title">
+        {% if request.user.is_superuser %}
+        Admin Panel
+        {% elif request.user.profile.role == 'teacher' %}
+        Teacher Panel
+        {% else %}
+        Invigilator Panel
+        {% endif %}
+      </div>
+      <div class="hdr-sub">
+        {% if election %}{{ election.school_name }} · {{ election.title }}{% else %}No active election{% endif %}
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="status-pill" id="voterWinStatus"><span class="dot" id="voterWinDot"></span><span
+          id="voterWinText">Voter Window Offline</span></div>
+      <div class="clock">
+        <div class="clock-time" id="clockTime">--:--:--</div>
+        <div class="clock-date" id="clockDate">---</div>
+      </div>
+      {% if request.user.is_superuser %}
+      <a href="/portal/" class="btn btn-secondary">Admin Portal</a>
+      {% endif %}
+      {% if election %}
+      <button class="btn btn-secondary" id="openVoterWindowBtn">Open Voter Window</button>
+      {% endif %}
+      <form method="post" action="{% url 'logout' %}" style="margin:0">
+        {% csrf_token %}
+        <button class="btn btn-secondary" type="submit">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <div class="page">
+    <section class="stats">
+      <article class="stat">
+        <div class="stat-num" id="statTotal">{{ total_students|default:0 }}</div>
+        <div class="stat-lbl">Total Students</div>
+      </article>
+      <article class="stat">
+        <div class="stat-num" id="statVoted">{{ voters_count|default:0 }}</div>
+        <div class="stat-lbl">Votes Cast</div>
+      </article>
+      <article class="stat">
+        <div class="stat-num" id="statPending">0</div>
+        <div class="stat-lbl">Pending</div>
+      </article>
+      <article class="stat">
+        <div class="stat-num" id="statTurnout">0%</div>
+        <div class="stat-lbl">Turnout</div>
+      </article>
+    </section>
+
+    <section class="card" id="activeKiosksSection">
+      <div class="card-hd">
+        <div class="card-title">Active Kiosks</div>
+        <div id="kioskCount" class="badge badge-pending">0 connected</div>
+      </div>
+      <div class="kiosk-list" id="kioskList"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-hd" style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="card-title">Student Roster</div>
+        {% if election %}
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="btn btn-ghost" id="openImportStudentsModalBtn"
+            style="padding: 6px 12px; font-size: 12px; border-radius: 8px;" type="button">Import CSV/Excel</button>
+          <button class="btn btn-primary" id="openAddStudentModalBtn"
+            style="padding: 6px 12px; font-size: 12px; border-radius: 8px;" type="button">Add Student</button>
+        </div>
+        {% endif %}
+      </div>
+      <div class="filters">
+        <div class="field">
+          <label for="filterClass">Class</label>
+          <select id="filterClass">
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="filterDivision">Division</label>
+          <select id="filterDivision">
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="filterStatus">Status</label>
+          <select id="filterStatus">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="voted">Voted</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="filterSearch">Search</label>
+          <input id="filterSearch" type="text" placeholder="Name or Student ID" />
+        </div>
+        <button id="clearFiltersBtn" class="btn btn-ghost" type="button">Clear</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Class/Division</th>
+              <th>Student ID</th>
+              <th>Status</th>
+              <th class="action-header">Action</th>
+            </tr>
+          </thead>
+          <tbody id="studentsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-bg" id="activateModal">
+    <div class="modal">
+      <h3>Activate Voter Session</h3>
+      <p id="modalStudentSummary">Choose a kiosk for this student.</p>
+
+      <div class="countdown" id="activationCountdown">
+        <div style="font-size:12px; color: var(--muted); margin-bottom:6px;">Session Active. Time Remaining</div>
+        <div class="countdown-num" id="countdownValue">90</div>
+      </div>
+
+      <div class="kiosk-picker" id="kioskPicker"></div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+        <button type="button" class="btn btn-ghost" id="cancelActivateBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmActivateBtn">Activate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="addStudentModal">
+    <div class="modal" style="width: min(450px, 96vw);">
+      <h3>Add Student</h3>
+      <p style="margin-bottom: 12px; color: var(--muted); font-size: 13px;">Add a new student to this election roster.
+      </p>
+
+      <form id="addStudentForm" style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+        <div class="field">
+          <label for="addStudentName" style="font-size: 11px; color: var(--muted); font-weight: 700;">Full Name
+            *</label>
+          <input id="addStudentName" type="text" placeholder="e.g. John Doe" required
+            style="height: 40px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px;" />
+        </div>
+        <div class="field">
+          <label for="addStudentClass" style="font-size: 11px; color: var(--muted); font-weight: 700;">Class *</label>
+          <input id="addStudentClass" type="text" placeholder="e.g. 10" required
+            style="height: 40px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px;" />
+        </div>
+        <div class="field">
+          <label for="addStudentDivision"
+            style="font-size: 11px; color: var(--muted); font-weight: 700;">Division</label>
+          <input id="addStudentDivision" type="text" placeholder="e.g. A"
+            style="height: 40px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px;" />
+        </div>
+        <div class="field">
+          <label for="addStudentId" style="font-size: 11px; color: var(--muted); font-weight: 700;">Student ID /
+            Admission Number</label>
+          <input id="addStudentId" type="text" placeholder="e.g. S1024"
+            style="height: 40px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px;" />
+        </div>
+
+        <div id="addStudentError"
+          style="color: var(--danger); font-size: 12px; display: none; margin-top: 4px; font-weight: 500;"></div>
+
+        <div
+          style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-ghost" id="cancelAddStudentBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="confirmAddStudentBtn">Add Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="importStudentsModal">
+    <div class="modal" style="width: min(500px, 96vw);">
+      <h3>Import Students</h3>
+      <p style="margin-bottom: 12px; color: var(--muted); font-size: 13px;">
+        Upload the same roster format used in the admin portal: Name, Class, Division, Student ID.
+      </p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 12px;">
+        <a class="btn btn-ghost" id="downloadExcelTemplateBtn" href="#" style="font-size:12px;">Download Excel Format</a>
+        <a class="btn btn-ghost" id="downloadCsvTemplateBtn" href="#" style="font-size:12px;">Download CSV Format</a>
+      </div>
+
+      <form id="importStudentsForm" style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+        <div class="field">
+          <label for="importStudentsFile" style="font-size: 11px; color: var(--muted); font-weight: 700;">Excel or CSV File *</label>
+          <input id="importStudentsFile" name="excel_file" type="file" accept=".xlsx,.csv" required
+            style="height: auto; min-height: 40px; padding: 8px 10px;" />
+        </div>
+
+        <div id="importStudentsResult"
+          style="display:none; border:1px solid var(--border); border-radius:10px; padding:10px; font-size:12px; color:var(--muted); background:var(--surface-2);"></div>
+        <div id="importStudentsError"
+          style="color: var(--danger); font-size: 12px; display: none; margin-top: 4px; font-weight: 500;"></div>
+
+        <div
+          style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-ghost" id="cancelImportStudentsBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="confirmImportStudentsBtn">Import Students</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script>
+    const CSRF = "{{ csrf_token }}";
+    const SCHOOL_SLUG = "{{ election.school_slug|default:''|escapejs }}";
+    const VOTER_URL = SCHOOL_SLUG ? `/vote/${SCHOOL_SLUG}/` : '/';
+
+    const state = {
+      students: [],
+      kiosks: [],
+      selectedStudent: null,
+      selectedKiosk: null,
+      countdownTimer: null,
+      sessionPollInterval: null,
+    };
+
+    function showToast(text, isError = false) {
+      const wrap = document.getElementById('toastWrap');
+      const el = document.createElement('div');
+      el.className = `toast${isError ? ' err' : ''}`;
+      el.textContent = text;
+      wrap.appendChild(el);
+      setTimeout(() => el.remove(), 3200);
+    }
+
+    function startClock() {
+      const t = document.getElementById('clockTime');
+      const d = document.getElementById('clockDate');
+      const tick = () => {
+        const now = new Date();
+        t.textContent = now.toLocaleTimeString('en-IN', { hour12: true });
+        d.textContent = now.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+      };
+      tick();
+      setInterval(tick, 1000);
+    }
+
+    function refreshStatusPill() {
+      const online = state.kiosks.length > 0;
+      document.getElementById('voterWinDot').classList.toggle('online', online);
+      document.getElementById('voterWinText').textContent = online ? 'Voter Window Online' : 'Voter Window Offline';
+    }
+
+    async function fetchKiosks() {
+      try {
+        const res = await fetch('/api/invigilator/kiosks/?school_slug=' + encodeURIComponent('{{ election.school_slug|default:"" }}'));
+        if (!res.ok) return;
+        const data = await res.json();
+        state.kiosks = data.active_kiosks || [];
+        renderKiosks();
+        refreshStatusPill();
+      } catch (_) { }
+    }
+
+    function renderKiosks() {
+      const list = document.getElementById('kioskList');
+      const count = document.getElementById('kioskCount');
+      count.textContent = `${state.kiosks.length} connected`;
+
+      if (!state.kiosks.length) {
+        list.innerHTML = '<span style="font-size:12px;color:var(--muted)">No kiosks connected yet. Open the voter page first.</span>';
+        return;
+      }
+
+      list.innerHTML = state.kiosks.map((k) => `
+        <span class="kiosk-chip">${k.username} · active ${k.last_seen_seconds_ago}s ago</span>
+      `).join('');
+    }
+
+    async function fetchStudents() {
+      try {
+        const url = SCHOOL_SLUG
+          ? `/api/invigilator/students/?school_slug=${encodeURIComponent(SCHOOL_SLUG)}`
+          : '/api/invigilator/students/';
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        state.students = data.students || [];
+        buildFilterOptions();
+        renderStudents();
+      } catch (_) { }
+    }
+
+    function buildFilterOptions() {
+      const clsSel = document.getElementById('filterClass');
+      const divSel = document.getElementById('filterDivision');
+      const classes = [...new Set(state.students.map(s => s.student_class).filter(Boolean))].sort();
+      const divisions = [...new Set(state.students.map(s => s.division).filter(Boolean))].sort();
+
+      const classCurrent = clsSel.value;
+      const divCurrent = divSel.value;
+
+      clsSel.innerHTML = '<option value="">All</option>' + classes.map(v => `<option value="${v}">${v}</option>`).join('');
+      divSel.innerHTML = '<option value="">All</option>' + divisions.map(v => `<option value="${v}">${v}</option>`).join('');
+
+      clsSel.value = classes.includes(classCurrent) ? classCurrent : '';
+      divSel.value = divisions.includes(divCurrent) ? divCurrent : '';
+    }
+
+    function filteredStudents() {
+      const cls = document.getElementById('filterClass').value;
+      const div = document.getElementById('filterDivision').value;
+      const status = document.getElementById('filterStatus').value;
+      const search = document.getElementById('filterSearch').value.trim().toLowerCase();
+
+      return state.students.filter((s) => {
+        if (cls && s.student_class !== cls) return false;
+        if (div && s.division !== div) return false;
+        if (status === 'voted' && !s.has_voted) return false;
+        if (status === 'pending' && s.has_voted) return false;
+        if (search) {
+          const hay = `${s.name || ''} ${s.student_id || ''}`.toLowerCase();
+          if (!hay.includes(search)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderStudents() {
+      const list = filteredStudents();
+      const body = document.getElementById('studentsBody');
+
+      const total = state.students.length;
+      const voted = state.students.filter(s => s.has_voted).length;
+      const pending = Math.max(total - voted, 0);
+      const turnout = total ? Math.round((voted / total) * 100) : 0;
+
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statVoted').textContent = voted;
+      document.getElementById('statPending').textContent = pending;
+      document.getElementById('statTurnout').textContent = `${turnout}%`;
+
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No students match current filters.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = list.map((s, i) => {
+        const statusBadge = s.has_voted
+          ? '<span class="badge badge-voted">Voted</span>'
+          : '<span class="badge badge-pending">Pending</span>';
+        const actionBtn = s.has_voted
+          ? '<button class="btn btn-ghost" type="button" disabled>Already Voted</button>'
+          : `<button class="btn btn-primary" type="button" data-student-id="${s.id}">Vote Now</button>`;
+        const classDiv = `${s.student_class || '-'}${s.division ? `-${s.division}` : ''}`;
+
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td style="font-weight:600">${s.name || '-'}</td>
+            <td>${classDiv}</td>
+            <td style="font-family:monospace">${s.student_id || '-'}</td>
+            <td>${statusBadge}</td>
+            <td class="action-cell">${actionBtn}</td>
+          </tr>
+        `;
+      }).join('');
+
+      body.querySelectorAll('button[data-student-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const studentId = Number(btn.getAttribute('data-student-id'));
+          const student = state.students.find((s) => s.id === studentId);
+          if (!student) return;
+          if (student.has_voted) {
+            showToast('This student has already voted.', true);
+            return;
+          }
+          openActivateModal(student);
+        });
+      });
+    }
+
+    async function openActivateModal(student) {
+      state.selectedStudent = student;
+      state.selectedKiosk = null;
+      
+      const details = [
+        student.name,
+        `${student.student_class || '-'}${student.division ? `-${student.division}` : ''}`,
+        student.student_id
+      ].filter(Boolean).join(' · ');
+      
+      document.getElementById('modalStudentSummary').textContent = details;
+
+      const picker = document.getElementById('kioskPicker');
+      picker.innerHTML = '<span style="font-size:12px;color:var(--muted)">Checking available kiosks...</span>';
+
+      document.getElementById('activationCountdown').style.display = 'none';
+      document.getElementById('activateModal').classList.add('open');
+      document.getElementById('confirmActivateBtn').disabled = true;
+      document.getElementById('confirmActivateBtn').textContent = 'Activate';
+
+      // Fetch active kiosks on demand
+      await fetchKiosks();
+
+      if (!state.kiosks.length) {
+        picker.innerHTML = '<span style="font-size:12px;color:var(--muted)">No active kiosks found.</span>';
+      } else {
+        picker.innerHTML = state.kiosks.map((k) => `
+          <button type="button" class="pick" data-kiosk-id="${k.kiosk_id}" data-kiosk-name="${k.username}">
+            ${k.username}
+          </button>
+        `).join('');
+
+        picker.querySelectorAll('.pick').forEach((el) => {
+          el.addEventListener('click', () => {
+            state.selectedKiosk = {
+              kiosk_id: el.getAttribute('data-kiosk-id'),
+              name: el.getAttribute('data-kiosk-name'),
+            };
+            picker.querySelectorAll('.pick').forEach((p) => p.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('confirmActivateBtn').disabled = false;
+          });
+        });
+      }
+    }
+
+    function closeActivateModal() {
+      clearCountdown();
+      clearSessionPolling();
+      document.getElementById('activateModal').classList.remove('open');
+      state.selectedStudent = null;
+      state.selectedKiosk = null;
+    }
+
+    function startCountdown(seconds) {
+      const box = document.getElementById('activationCountdown');
+      const val = document.getElementById('countdownValue');
+      box.style.display = 'block';
+      let left = seconds;
+      val.textContent = String(left);
+      clearCountdown();
+
+      state.countdownTimer = setInterval(() => {
+        left -= 1;
+        val.textContent = String(Math.max(left, 0));
+        if (left <= 0) {
+          clearCountdown();
+          clearSessionPolling();
+          closeActivateModal();
+          showToast('Session timed out.');
+        }
+      }, 1000);
+    }
+
+    function clearCountdown() {
+      if (state.countdownTimer) {
+        clearInterval(state.countdownTimer);
+        state.countdownTimer = null;
+      }
+    }
+
+    function startSessionPolling(sessionId) {
+      clearSessionPolling();
+      state.sessionPollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/session/${sessionId}/status/`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.status === 'done') {
+            clearCountdown();
+            clearSessionPolling();
+            closeActivateModal();
+            showToast('Student voting completed successfully!');
+            fetchStudents();
+          } else if (data.status === 'expired' || data.status === 'cancelled') {
+            clearCountdown();
+            clearSessionPolling();
+            closeActivateModal();
+            showToast('Session was expired or cancelled.', true);
+            fetchStudents();
+          }
+        } catch (_) {}
+      }, 1500);
+    }
+
+    function clearSessionPolling() {
+      if (state.sessionPollInterval) {
+        clearInterval(state.sessionPollInterval);
+        state.sessionPollInterval = null;
+      }
+    }
+
+    async function activateStudent() {
+      const student = state.selectedStudent;
+      const kiosk = state.selectedKiosk;
+      if (!student || !kiosk) {
+        showToast('Choose a kiosk before activating.', true);
+        return;
+      }
+
+      const btn = document.getElementById('confirmActivateBtn');
+      btn.disabled = true;
+      btn.textContent = 'Activating...';
+
+      try {
+        const res = await fetch('/api/invigilator/activate-kiosk/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF,
+          },
+          body: JSON.stringify({
+            student_id: student.student_id || 'student_id__' + student.id,
+            kiosk_id: kiosk.kiosk_id,
+            school_slug: SCHOOL_SLUG,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.detail || 'Failed to activate kiosk session.');
+        }
+
+        showToast(`Activated ${kiosk.name} for ${student.name}.`);
+        startCountdown(90);
+        if (data.session_id) {
+          startSessionPolling(data.session_id);
+        }
+        setTimeout(fetchStudents, 1200);
+      } catch (err) {
+        showToast(err.message || 'Activation failed.', true);
+        btn.disabled = false;
+        btn.textContent = 'Activate';
+      }
+    }
+
+    function bindFilters() {
+      ['filterClass', 'filterDivision', 'filterStatus', 'filterSearch'].forEach((id) => {
+        document.getElementById(id).addEventListener('input', renderStudents);
+        document.getElementById(id).addEventListener('change', renderStudents);
+      });
+
+      document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+        document.getElementById('filterClass').value = '';
+        document.getElementById('filterDivision').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterSearch').value = '';
+        renderStudents();
+      });
+    }
+
+    document.getElementById('cancelActivateBtn').addEventListener('click', closeActivateModal);
+    document.getElementById('confirmActivateBtn').addEventListener('click', activateStudent);
+    document.getElementById('activateModal').addEventListener('click', (e) => {
+      if (e.target.id === 'activateModal') closeActivateModal();
+    });
+
+    function openAddStudentModal() {
+      document.getElementById('addStudentForm').reset();
+      document.getElementById('addStudentError').style.display = 'none';
+      document.getElementById('addStudentModal').classList.add('open');
+    }
+    function closeAddStudentModal() {
+      document.getElementById('addStudentModal').classList.remove('open');
+    }
+
+    const openAddBtn = document.getElementById('openAddStudentModalBtn');
+    if (openAddBtn) {
+      openAddBtn.addEventListener('click', openAddStudentModal);
+    }
+    document.getElementById('cancelAddStudentBtn').addEventListener('click', closeAddStudentModal);
+    document.getElementById('addStudentModal').addEventListener('click', (e) => {
+      if (e.target.id === 'addStudentModal') closeAddStudentModal();
+    });
+
+    document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('addStudentName').value.trim();
+      const cls = document.getElementById('addStudentClass').value.trim();
+      const div = document.getElementById('addStudentDivision').value.trim();
+      const sid = document.getElementById('addStudentId').value.trim();
+
+      const errEl = document.getElementById('addStudentError');
+      errEl.style.display = 'none';
+
+      const submitBtn = document.getElementById('confirmAddStudentBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      try {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('student_class', cls);
+        formData.append('division', div);
+        formData.append('student_id', sid);
+
+        const res = await fetch('/api/invigilator/students/create/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': CSRF,
+            'x-requested-with': 'XMLHttpRequest'
+          },
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Failed to add student.');
+        }
+
+        showToast(`Student "${name}" added successfully.`);
+        closeAddStudentModal();
+        fetchStudents();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Student';
+      }
+    });
+
+    function openImportStudentsModal() {
+      document.getElementById('importStudentsForm').reset();
+      document.getElementById('importStudentsError').style.display = 'none';
+      document.getElementById('importStudentsResult').style.display = 'none';
+      document.getElementById('importStudentsResult').innerHTML = '';
+      const query = SCHOOL_SLUG ? `&school_slug=${encodeURIComponent(SCHOOL_SLUG)}` : '';
+      document.getElementById('downloadExcelTemplateBtn').href = `/api/invigilator/students/import/template/?format=xlsx${query}`;
+      document.getElementById('downloadCsvTemplateBtn').href = `/api/invigilator/students/import/template/?format=csv${query}`;
+      document.getElementById('importStudentsModal').classList.add('open');
+    }
+    function closeImportStudentsModal() {
+      document.getElementById('importStudentsModal').classList.remove('open');
+    }
+
+    const openImportBtn = document.getElementById('openImportStudentsModalBtn');
+    if (openImportBtn) {
+      openImportBtn.addEventListener('click', openImportStudentsModal);
+    }
+    document.getElementById('cancelImportStudentsBtn').addEventListener('click', closeImportStudentsModal);
+    document.getElementById('importStudentsModal').addEventListener('click', (e) => {
+      if (e.target.id === 'importStudentsModal') closeImportStudentsModal();
+    });
+
+    document.getElementById('importStudentsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('importStudentsFile');
+      const errEl = document.getElementById('importStudentsError');
+      const resultEl = document.getElementById('importStudentsResult');
+      const submitBtn = document.getElementById('confirmImportStudentsBtn');
+
+      errEl.style.display = 'none';
+      resultEl.style.display = 'none';
+      resultEl.innerHTML = '';
+
+      if (!fileInput.files.length) {
+        errEl.textContent = 'Please choose an Excel or CSV file.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Importing...';
+
+      try {
+        const formData = new FormData();
+        formData.append('excel_file', fileInput.files[0]);
+        if (SCHOOL_SLUG) {
+          formData.append('school_slug', SCHOOL_SLUG);
+        }
+
+        const res = await fetch('/api/invigilator/students/import/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': CSRF,
+            'x-requested-with': 'XMLHttpRequest'
+          },
+          body: formData
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.detail || 'Failed to import students.');
+        }
+
+        const errors = data.errors && data.errors.length
+          ? `<div style="margin-top:8px; color:var(--danger);">${data.errors.join('<br>')}</div>`
+          : '';
+        resultEl.innerHTML = `<strong>${data.created || 0}</strong> students imported. <strong>${data.skipped || 0}</strong> rows skipped.${errors}`;
+        resultEl.style.display = 'block';
+        showToast(`Imported ${data.created || 0} students.`);
+        fetchStudents();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Import Students';
+      }
+    });
+
+    {% if election %}
+    const openBtn = document.getElementById('openVoterWindowBtn');
+    if (openBtn) {
+      openBtn.addEventListener('click', () => {
+        window.open(VOTER_URL, '_blank', 'noopener,noreferrer');
+      });
+    }
+    {% endif %}
+
+    startClock();
+    bindFilters();
+    fetchStudents();
+    setInterval(fetchStudents, 5000);
+  </script>
+</body>
+
+</html>

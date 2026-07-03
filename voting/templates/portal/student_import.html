@@ -1,0 +1,128 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Import Students{% endblock %}
+
+{% block breadcrumb %}
+  <a class="bc-item" href="{% url 'portal-home' %}">Dashboard</a>
+  <span class="bc-sep">/</span>
+  <a class="bc-item" href="{% url 'portal-students' election.id %}">Students</a>
+  <span class="bc-sep">/</span>
+  <span class="bc-item active">Import</span>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    <div class="form-card-header">
+      <div class="form-card-icon">📥</div>
+      <div>
+        <h1 class="form-card-title">Import Students From Excel</h1>
+        <p class="form-card-sub">{{ election.school_name }} · {{ election.title }}</p>
+      </div>
+    </div>
+
+    {% if error %}
+      <div class="alert" style="border-color: rgba(239,68,68,.35); color: #fca5a5; background: rgba(239,68,68,.12);">{{ error }}</div>
+    {% endif %}
+
+    {% if success %}
+      <div class="alert" style="border-color: rgba(34,197,94,.35); color: #86efac; background: rgba(34,197,94,.12);">
+        Import completed. Created: {{ created }}, Skipped: {{ skipped }}
+      </div>
+      {% if errors_list %}
+        <div class="section-card">
+          <div class="section-card-title">Row Errors</div>
+          <ul style="margin-left: 18px; color: var(--text-muted); font-size: 12px;">
+            {% for e in errors_list %}
+              <li>{{ e }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <div class="section-card">
+      <div class="section-card-title">File Formats &amp; Preview</div>
+      <p class="hint-text">You can upload either a Microsoft Excel sheet (.xlsx) or a standard Comma Separated Values (.csv) text file.</p>
+      
+      <div style="margin: 15px 0; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+          <thead>
+            <tr style="background: var(--surface-2); color: var(--text-muted); border-bottom: 1px solid var(--border);">
+              <th style="padding: 8px 12px; font-weight: 700;">Name</th>
+              <th style="padding: 8px 12px; font-weight: 700;">Class</th>
+              <th style="padding: 8px 12px; font-weight: 700;">Division</th>
+              <th style="padding: 8px 12px; font-weight: 700;">Student ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid var(--border); opacity: 0.85;">
+              <td style="padding: 8px 12px; font-weight: 600;">Aarav Menon</td>
+              <td style="padding: 8px 12px;">10</td>
+              <td style="padding: 8px 12px;">A</td>
+              <td style="padding: 8px 12px; font-family: monospace;">ST1001</td>
+            </tr>
+            <tr style="opacity: 0.85;">
+              <td style="padding: 8px 12px; font-weight: 600;">Fathima Noor</td>
+              <td style="padding: 8px 12px;">10</td>
+              <td style="padding: 8px 12px;">B</td>
+              <td style="padding: 8px 12px; font-family: monospace;">ST1002</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+        <a href="{% url 'portal-student-import-template' election.id %}" download="student_import_template.xlsx" class="btn btn-secondary" style="width:max-content; display:inline-flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Excel Template (.xlsx)
+        </a>
+        <a href="{% url 'portal-student-import-template' election.id %}?format=csv" download="student_import_template.csv" class="btn btn-secondary" style="width:max-content; display:inline-flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          CSV Template (.csv)
+        </a>
+      </div>
+
+      <details style="border: 1px solid var(--border); border-radius: var(--r-sm); padding: 10px 14px; background: var(--surface-1); cursor: pointer;">
+        <summary style="font-size: 13px; font-weight: 600; color: var(--text);">Can't download files? Copy CSV format data directly</summary>
+        <div style="margin-top: 10px; cursor: default;">
+          <p class="hint-text" style="margin-bottom: 8px;">Copy the text below, paste it into any text editor (like Notepad), and save it as <code>students.csv</code>:</p>
+          <div style="position: relative;">
+            <textarea id="csv-template-data" readonly style="width: 100%; height: 80px; font-family: monospace; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-xs); padding: 8px; color: var(--text); resize: none; outline: none;">Name,Class,Division,Student ID
+Aarav Menon,10,A,ST1001
+Fathima Noor,10,B,ST1002</textarea>
+            <button type="button" onclick="copyCsvTemplate()" class="btn btn-xs" style="position: absolute; right: 8px; bottom: 12px; background: var(--surface-1); border: 1px solid var(--border);">Copy Data</button>
+          </div>
+          <span id="copy-success-msg" style="color: #22c55e; font-size: 11px; font-weight: 600; display: none; margin-top: 4px;">✓ Copied to clipboard!</span>
+        </div>
+      </details>
+
+      <script>
+        function copyCsvTemplate() {
+          const textarea = document.getElementById('csv-template-data');
+          textarea.select();
+          document.execCommand('copy');
+          const msg = document.getElementById('copy-success-msg');
+          msg.style.display = 'inline';
+          setTimeout(() => { msg.style.display = 'none'; }, 3000);
+        }
+      </script>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="portal-form">
+      {% csrf_token %}
+      <div class="form-section">
+        <div class="form-group">
+          <label class="form-label" for="excel_file">Select File (.xlsx or .csv)</label>
+          <input class="form-input" id="excel_file" name="excel_file" type="file" accept=".xlsx,.csv" required />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'portal-students' election.id %}" class="btn btn-ghost">Back</a>
+        <button type="submit" class="btn btn-primary">Upload & Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

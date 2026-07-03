@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="School E-Voting System — Secure Voter Interface for student council elections." />
+  <title>E-Voting | Secure Voter Booth</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/voter.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     VOTER LAYOUT
+══════════════════════════════════════════ -->
+<div class="voter-layout" id="voterLayout">
+
+  <!-- Header -->
+  <header class="voter-header">
+    <div class="voter-header-brand">
+      <div class="voter-brand-logo">🗳️</div>
+      <div class="voter-brand-text">
+        <div class="voter-brand-name">🏫 Sunrise Public School</div>
+        <div class="voter-brand-sub">Student Council Elections 2024–25</div>
+      </div>
+    </div>
+    <div class="voter-header-right">
+      <div class="election-badge">
+        <div class="election-dot"></div>
+        <span>SECURE VOTER BOOTH</span>
+      </div>
+      <div class="header-datetime" style="text-align:right">
+        <div class="header-time" id="voterTime" style="font-size:15px;font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums">--:--:--</div>
+        <div class="header-date" id="voterDate" style="font-size:11px;color:var(--text-muted)">---</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="voter-body" id="voterBody">
+
+    <!-- ─── IDLE SCREEN (default) ─────────────────────── -->
+    <div class="idle-screen" id="idleScreen">
+      <div class="idle-animation">
+        <div class="idle-circle">🗳️</div>
+      </div>
+      <div>
+        <h1 class="idle-title">Awaiting<br /><span class="text-gradient">Voter Session</span></h1>
+        <p class="idle-subtitle" style="margin-top:12px">
+          Please wait for the invigilator to<br />activate your voting session.
+        </p>
+      </div>
+      <div class="idle-dots">
+        <div class="idle-dot"></div>
+        <div class="idle-dot"></div>
+        <div class="idle-dot"></div>
+      </div>
+      <div style="margin-top:8px">
+        <span class="badge badge-primary" style="font-size:11px;padding:5px 14px">
+          🔒 Secure &amp; Anonymous
+        </span>
+      </div>
+    </div>
+
+    <!-- ─── ACTIVE VOTING SCREEN ──────────────────────── -->
+    <div class="voting-screen" id="votingScreen" style="display:none">
+
+      <!-- Voter Identity Card -->
+      <div class="voter-identity-card" id="voterIdentityCard">
+        <div class="voter-avatar-lg" id="voterAvatarLg">?</div>
+        <div class="voter-identity-info">
+          <div class="voter-greeting">Welcome, Voter</div>
+          <div class="voter-full-name" id="voterDisplayName">—</div>
+          <div class="voter-meta-chips" id="voterMetaChips">
+            <span class="meta-chip class">📚 Class —</span>
+            <span class="meta-chip div">🏷️ Division —</span>
+            <span class="meta-chip roll">🎫 Roll —</span>
+          </div>
+        </div>
+        <div class="voter-countdown-pill" id="voterCountdownPill">
+          <div class="vcp-label">Time Left</div>
+          <div class="vcp-time" id="voterCountdownDisplay">60</div>
+          <div class="vcp-bar">
+            <div class="vcp-bar-fill" id="voterCountdownBar" style="width:100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Voting Progress Bar ── -->
+      <div class="voting-progress-wrap" id="votingProgressWrap">
+        <div class="voting-progress-info">
+          <span id="progressText">0 of 6 positions voted</span>
+          <span class="voting-progress-pct" id="progressPct">0%</span>
+        </div>
+        <div class="voting-progress-track">
+          <div class="voting-progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- ── Multi-Position Sections ── -->
+      <div id="electionSectionsContainer">
+        <!-- Rendered by voter.js -->
+      </div>
+
+      <!-- Submit -->
+      <div class="vote-submit-section" id="voteSubmitSection">
+        <p class="vote-submit-status" id="voteSubmitStatus">
+          Please vote for all positions to submit.
+        </p>
+        <button class="submit-vote-btn" id="submitVoteBtn" disabled aria-label="Submit Vote">
+          <span>🗳️ Review &amp; Submit Ballot</span>
+          <span class="btn-icon">→</span>
+        </button>
+      </div>
+
+    </div><!-- /voting-screen -->
+
+    <!-- ─── SUCCESS SCREEN ────────────────────────────── -->
+    <div class="vote-success-screen" id="successScreen" style="display:none">
+      <div class="success-animation">✅</div>
+      <h1 class="success-title">Vote Submitted!</h1>
+      <p class="success-subtitle" id="successMessage">
+        Your vote has been successfully recorded.<br />Thank you for participating!
+      </p>
+      <span class="badge badge-success" style="font-size:12px;padding:6px 16px">
+        🔒 Verified &amp; Sealed
+      </span>
+    </div>
+
+  </div><!-- /voter-body -->
+
+  <!-- Footer -->
+  <footer class="voter-footer">
+    <div class="voter-footer-text">
+      Powered by <span>Sunrise E-Voting Platform</span> &nbsp;|&nbsp; All votes are confidential &amp; encrypted
+    </div>
+  </footer>
+
+</div><!-- /voter-layout -->
+
+
+<!-- ══════════════════════════════════════════
+     BALLOT REVIEW / CONFIRMATION MODAL
+══════════════════════════════════════════ -->
+<div class="modal-overlay voter-confirm-modal" id="voteConfirmModal" role="dialog" aria-modal="true" aria-labelledby="voteConfirmTitle">
+  <div class="modal ballot-modal">
+    <div class="vote-confirm-icon">🗳️</div>
+    <h2 id="voteConfirmTitle" style="font-size:18px;font-weight:800;margin-bottom:6px;color:var(--text-primary)">
+      Confirm Your Ballot
+    </h2>
+    <p class="vote-confirm-text" id="voteConfirmText">
+      Please review your selections before submitting. This action cannot be undone.
+    </p>
+    <!-- Summary list — filled by JS -->
+    <div class="ballot-summary" id="ballotSummary"></div>
+    <div class="vote-confirm-actions">
+      <button class="btn btn-ghost" id="voteConfirmCancelBtn">✕ Go Back</button>
+      <button class="btn btn-success" id="voteConfirmOkBtn">✅ Submit My Vote</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="js/data.js"></script>
+<script src="js/voter.js"></script>
+</body>
+</html>

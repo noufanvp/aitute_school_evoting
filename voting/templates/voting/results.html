@@ -1,0 +1,1392 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Official election results for {{ election.title }} — {{ election.school_name }}" />
+  <meta property="og:title" content="{{ election.title }} — Results" />
+  <meta property="og:description" content="Official student council election results for {{ election.school_name }}" />
+  <title>Results — {{ election.title }}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Tokens ─────────────────────────────── */
+    :root {
+      --primary:       #4f46e5;
+      --primary-dark:  #3730a3;
+      --primary-light: #818cf8;
+      --gold:          #f59e0b;
+      --gold-light:    #fef3c7;
+      --gold-dark:     #d97706;
+      --success:       #22c55e;
+      --bg:            #f1f5f9;
+      --surface:       #ffffff;
+      --border:        #e2e8f0;
+      --text:          #1e293b;
+      --text-muted:    #64748b;
+      --r-md:          10px;
+      --r-lg:          16px;
+      --r-xl:          24px;
+      --sh-md:         0 4px 16px rgba(0,0,0,.08);
+      --sh-lg:         0 12px 40px rgba(79,70,229,.14);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 60%, var(--primary-light) 100%);
+      color: #fff;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(79,70,229,.35);
+    }
+
+    .header-left { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+    .header-logo { height: 34px; width: auto; object-fit: contain; }
+
+    .header-center { text-align: center; flex: 1; min-width: 0; }
+    .header-center h1 {
+      font-size: clamp(13px, 2.2vw, 17px);
+      font-weight: 800;
+      letter-spacing: .3px;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-school {
+      font-size: clamp(10px, 1.4vw, 12px);
+      font-weight: 700;
+      color: rgba(255,255,255,.85);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+    }
+
+    .header-right {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .school-logo-wrap {
+      background: #ffffff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      height: 38px;
+    }
+
+    .school-logo {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    /* ── Hero Stats Banner ───────────────────── */
+    .stats-banner {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      color: #fff;
+      padding: 28px 24px 32px;
+      text-align: center;
+    }
+    .stats-banner .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .stats-banner h2 {
+      font-size: clamp(22px, 4vw, 34px);
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+    .stats-banner p {
+      font-size: 14px;
+      color: rgba(255,255,255,.75);
+      margin-bottom: 24px;
+    }
+    .stats-grid {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: var(--r-lg);
+      padding: 14px 24px;
+      min-width: 130px;
+    }
+    .stat-card .stat-num {
+      font-size: 28px;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1;
+    }
+    .stat-card .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,.7);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-top: 4px;
+    }
+
+    /* ── Admin Publish Bar ───────────────────── */
+    .publish-bar {
+      background: #fff;
+      border-bottom: 2px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .publish-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .status-dot.published { background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,.5); }
+
+    .btn-publish {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .btn-publish.publish {
+      background: linear-gradient(135deg, var(--success), #16a34a);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(34,197,94,.3);
+    }
+    .btn-publish.publish:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(34,197,94,.4); }
+    .btn-publish.unpublish {
+      background: #fff;
+      color: #dc2626;
+      border: 2px solid #fecaca;
+    }
+    .btn-publish.unpublish:hover { background: #fef2f2; }
+    .btn-publish:disabled { opacity: .6; cursor: not-allowed; transform: none !important; }
+
+    .results-link-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-radius: var(--r-md);
+      padding: 6px 12px;
+      font-weight: 500;
+    }
+    .results-link-note strong { color: var(--primary); word-break: break-all; }
+
+    /* ── User Lock Panel ─────────────────────────── */
+    .lock-panel {
+      background: #fff;
+      border-bottom: 2px solid var(--border);
+      padding: 0;
+      overflow: hidden;
+      transition: max-height .35s ease;
+      max-height: 0;
+    }
+    .lock-panel.open { max-height: 600px; }
+
+    .lock-panel-inner { padding: 14px 24px 18px; }
+    .lock-panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .lock-users-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .user-lock-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 8px 14px;
+      min-width: 200px;
+      flex: 1 1 200px;
+      transition: border-color .2s;
+    }
+    .user-lock-card.locked {
+      border-color: #fecaca;
+      background: #fff5f5;
+    }
+    .user-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: #fff;
+      flex: 0 0 32px;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 700; color: var(--text); }
+    .user-role { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+    .btn-lock-toggle {
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: none;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .btn-lock-toggle.lock-it {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .btn-lock-toggle.lock-it:hover { background: #fecaca; }
+    .btn-lock-toggle.unlock-it {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .btn-lock-toggle.unlock-it:hover { background: #bbf7d0; }
+    .btn-lock-toggle:disabled { opacity: .6; cursor: not-allowed; }
+
+    .btn-lock-all {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--r-md);
+      border: none;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-lock-all.do-lock { background: #fee2e2; color: #dc2626; }
+    .btn-lock-all.do-lock:hover { background: #fecaca; }
+    .btn-lock-all.do-unlock { background: #dcfce7; color: #16a34a; }
+    .btn-lock-all.do-unlock:hover { background: #bbf7d0; }
+
+    .toggle-lock-panel-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .toggle-lock-panel-btn:hover { background: #e2e8f0; }
+
+    /* ── Main Layout ─────────────────────────── */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+      flex: 1 0 auto;
+      width: 100%;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Position Cards ──────────────────────── */
+    .position-card {
+      background: var(--surface);
+      border-radius: var(--r-xl);
+      box-shadow: var(--sh-md);
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .position-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .position-icon { font-size: 22px; }
+    .position-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .position-tally {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* ── Candidate Result Rows ───────────────── */
+    .candidate-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background .15s;
+      position: relative;
+    }
+    .candidate-row:last-child { border-bottom: none; }
+    .candidate-row:hover { background: #fafafa; }
+
+    .candidate-row.winner {
+      background: linear-gradient(to right, var(--gold-light), #fffbeb 60%, #fff);
+      border-left: 4px solid var(--gold);
+    }
+    .candidate-row.winner:hover { background: linear-gradient(to right, #fef3c7, #fffbeb 60%, #fff); }
+
+    /* Photo */
+    .cand-photo {
+      flex: 0 0 52px;
+      width: 52px;
+      height: 66px;
+      border-radius: 8px;
+      object-fit: cover;
+      object-position: top center;
+      border: 2px solid var(--border);
+    }
+    .cand-photo.winner-img { border-color: var(--gold); box-shadow: 0 0 12px rgba(245,158,11,.35); }
+    .cand-avatar {
+      flex: 0 0 52px;
+      width: 52px;
+      height: 66px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      border: 2px solid var(--border);
+    }
+
+    /* Symbol */
+    .cand-symbol {
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      opacity: .85;
+    }
+
+    /* Info */
+    .cand-info { flex: 1; min-width: 0; }
+    .cand-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .winner .cand-name { color: var(--gold-dark); }
+    .cand-class { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+    /* Vote bar */
+    .vote-bar-wrap { margin-top: 6px; display: flex; align-items: center; gap: 8px; }
+    .vote-bar-track {
+      flex: 1;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .vote-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary), var(--primary-light));
+      width: 0%;
+      animation: barGrow 1.1s cubic-bezier(.4,0,.2,1) forwards;
+    }
+    .winner .vote-bar-fill {
+      background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+    }
+    @keyframes barGrow {
+      from { width: 0%; }
+      to   { width: var(--bar-pct); }
+    }
+
+    .vote-count {
+      flex: 0 0 auto;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      min-width: 60px;
+      text-align: right;
+    }
+    .winner .vote-count { color: var(--gold-dark); }
+
+    /* Winner crown badge */
+    .crown-badge {
+      position: absolute;
+      top: 10px;
+      right: 16px;
+      background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 999px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 8px rgba(245,158,11,.4);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── Empty state ─────────────────────────── */
+    .no-votes {
+      text-align: center;
+      padding: 28px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* ── Footer ──────────────────────────────── */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      margin-top: 40px;
+    }
+
+    /* ── Action Bar (Screen Only) ────────────────── */
+    .action-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-print {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(79,70,229,0.25);
+    }
+    .btn-print:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79,70,229,0.35);
+    }
+    .btn-pdf {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border);
+      box-shadow: var(--sh-md);
+    }
+    .btn-pdf:hover {
+      background: var(--bg);
+      transform: translateY(-1px);
+    }
+    .btn-icon {
+      flex-shrink: 0;
+    }
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Print Stylesheet & Layout ────────────────── */
+    .print-report-container {
+      display: none;
+    }
+
+    /* Print styling rules defined globally so that html2canvas captures them on screen */
+    .print-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .print-logo {
+      height: 52px;
+      width: auto;
+      object-fit: contain;
+    }
+    .print-header-text h2 {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .print-subtitle {
+      font-size: 9pt;
+      color: #64748b;
+      margin: 1px 0 0 0;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .print-divider {
+      height: 3px;
+      background: linear-gradient(90deg, #4f46e5 0%, #818cf8 100%);
+      margin-bottom: 16px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-title-area {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .print-report-title {
+      font-size: 16pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 4px 0;
+      letter-spacing: 0.3px;
+    }
+    .print-status-badge {
+      display: inline-block;
+      font-size: 8.5pt;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 4px;
+      letter-spacing: 0.8px;
+    }
+    .print-status-badge.certified {
+      background-color: #dcfce7 !important;
+      color: #15803d !important;
+      border: 1px solid #bbf7d0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-status-badge.draft {
+      background-color: #fee2e2 !important;
+      color: #b91c1c !important;
+      border: 1px solid #fecaca;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-metadata-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 16px;
+      background-color: #f8fafc !important;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 20px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-meta-item {
+      font-size: 9.5pt;
+      color: #334155;
+      text-align: left;
+    }
+    .print-meta-item strong {
+      color: #0f172a;
+    }
+    .print-section {
+      margin-bottom: 24px;
+    }
+    .print-section h3 {
+      font-size: 11pt;
+      font-weight: 800;
+      color: #1e293b;
+      border-bottom: 1.5px solid #cbd5e1;
+      padding-bottom: 4px;
+      margin: 0 0 10px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: left;
+    }
+    .print-position-block {
+      margin-bottom: 20px;
+      break-inside: avoid;
+    }
+    .print-position-header {
+      display: flex;
+      align-items: center;
+      background-color: #f1f5f9 !important;
+      border: 1px solid #cbd5e1;
+      border-bottom: none;
+      padding: 6px 10px;
+      font-weight: 800;
+      font-size: 10pt;
+      color: #1e293b;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-pos-icon {
+      margin-right: 6px;
+    }
+    .print-pos-name {
+      text-transform: uppercase;
+    }
+    .print-pos-total {
+      margin-left: auto;
+      font-size: 8.5pt;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .print-results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      border: 1px solid #cbd5e1;
+    }
+    .print-results-table th {
+      background-color: #f8fafc !important;
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      font-size: 7.5pt;
+      letter-spacing: 0.5px;
+      text-align: left;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-results-table td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      vertical-align: middle;
+      color: #334155;
+      text-align: left;
+    }
+    .print-results-table tr.winner-row {
+      background-color: #fffbeb !important;
+      font-weight: 500;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-results-table tr.winner-row td {
+      border-color: #fde68a;
+    }
+    .print-td-photo {
+      text-align: center !important;
+      padding: 3px !important;
+    }
+    .print-cand-photo {
+      width: 28px;
+      height: 36px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+      display: block;
+      margin: 0 auto;
+    }
+    .print-cand-avatar {
+      width: 28px;
+      height: 36px;
+      line-height: 36px;
+      text-align: center;
+      background-color: #e2e8f0 !important;
+      color: #475569;
+      font-weight: 700;
+      border-radius: 4px;
+      margin: 0 auto;
+      font-size: 10pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-cand-symbol {
+      width: 20px !important;
+      height: 20px !important;
+      max-width: 20px !important;
+      max-height: 20px !important;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+    }
+    .print-cand-name {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .print-cand-class {
+      font-size: 7.5pt;
+      color: #64748b;
+      margin-top: 1px;
+    }
+    .print-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .print-bar-fill {
+      height: 8px;
+      background-color: #cbd5e1 !important;
+      border-radius: 2px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    tr.winner-row .print-bar-fill {
+      background-color: #f59e0b !important;
+    }
+    .print-pct-val {
+      font-size: 8pt;
+      font-weight: 700;
+    }
+    .print-winner-badge {
+      display: inline-block;
+      background-color: #fef3c7 !important;
+      color: #d97706 !important;
+      border: 1px solid #fde68a;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 7pt;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-muted {
+      color: #94a3b8;
+    }
+    .print-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 7pt;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 4px;
+      background: #fff;
+      margin-top: 20px;
+    }
+
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-family: 'Inter', sans-serif;
+        font-size: 11pt;
+        line-height: 1.35;
+        padding: 0;
+        margin: 0;
+      }
+      .no-print, .header, .stats-banner, .publish-bar, .lock-panel, .container, .footer {
+        display: none !important;
+      }
+      .print-report-container {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .print-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+    }
+
+    /* ── Responsive ──────────────────────────── */
+    @media (max-width: 600px) {
+      .stats-grid { gap: 10px; }
+      .stat-card { min-width: 100px; padding: 10px 16px; }
+      .cand-photo, .cand-avatar { width: 44px; height: 56px; flex: 0 0 44px; }
+      .header-right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-left">
+      <img src="{% static 'voting/photos/aitute_logo.webp' %}" alt="Logo" class="header-logo" />
+    </div>
+    <div class="header-center">
+      <h1>{{ election.title }}</h1>
+      <div class="header-school">{{ election.school_name }}</div>
+    </div>
+    <div class="header-right">
+      {% if election and election.logo %}
+        <div class="school-logo-wrap">
+          <img src="{{ election.logo_url }}" alt="{{ election.school_name }} Logo" class="school-logo" onerror="this.closest('.school-logo-wrap').style.display='none';" />
+        </div>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- ── Hero Stats Banner ── -->
+  <div class="stats-banner">
+    {% if election.results_published %}
+      <div class="badge">🏆 Official Results</div>
+    {% else %}
+      <div class="badge">👁️ Admin Preview — Not Yet Published</div>
+    {% endif %}
+    <h2>Election Results</h2>
+    <p>{{ election.title }} &nbsp;·&nbsp; {{ election.school_name }}</p>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num">{{ total_submitted }}</div>
+        <div class="stat-label">Ballots Cast</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{{ positions|length }}</div>
+        <div class="stat-label">Positions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{{ positions|length }}</div>
+        <div class="stat-label">Winners Declared</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Admin Publish Control Bar ── -->
+  {% if is_superuser %}
+  <div class="publish-bar" id="publish-bar">
+    <div class="publish-status">
+      <span class="status-dot {% if election.results_published %}published{% endif %}" id="status-dot"></span>
+      <span id="publish-status-text">
+        {% if election.results_published %}
+          Results are <strong>publicly published</strong>
+        {% else %}
+          Results are <strong>not yet published</strong> — only admins can see this page
+        {% endif %}
+      </span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="results-link-note">
+        Public URL: <strong>{{ request.scheme }}://{{ request.get_host }}{% url 'results' election.id %}</strong>
+      </div>
+      <button
+        id="btn-toggle-lock-panel"
+        class="toggle-lock-panel-btn"
+        onclick="toggleLockPanel()"
+      >
+        🔒 Manage Users
+      </button>
+      <button
+        id="btn-publish"
+        class="btn-publish {% if election.results_published %}unpublish{% else %}publish{% endif %}"
+        onclick="togglePublish()"
+      >
+        {% if election.results_published %}
+          🔒 Unpublish Results
+        {% else %}
+          ✅ Publish Results
+        {% endif %}
+      </button>
+    </div>
+  </div>
+
+  <!-- ── User Lock Panel ── -->
+  <div class="lock-panel" id="lock-panel">
+    <div class="lock-panel-inner">
+      <div class="lock-panel-title">
+        <span>🔐 Invigilator Lock Management</span>
+        <span style="margin-left:auto;display:flex;gap:8px;">
+          <button class="btn-lock-all do-lock" onclick="lockAllUsers()">🔒 Lock All</button>
+          <button class="btn-lock-all do-unlock" onclick="unlockAllUsers()">✅ Unlock All</button>
+        </span>
+      </div>
+      <div class="lock-users-grid" id="lock-users-grid">
+        <div style="color:var(--text-muted);font-size:13px;">Loading users…</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Results Container ── -->
+  <div class="container">
+    <!-- ── Action Bar (Screen Only) ── -->
+    <div class="action-bar no-print">
+      <button class="btn-action btn-print" onclick="window.print()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        Print Report / Save PDF
+      </button>
+    </div>
+
+    <p class="section-title">Results by Position</p>
+
+    {% for position in positions %}
+    <div class="position-card">
+      <div class="position-header">
+        <span class="position-icon">{{ position.icon }}</span>
+        <span class="position-name">{{ position.name }}</span>
+        <span class="position-tally">{{ position.total_votes }} vote{{ position.total_votes|pluralize }}</span>
+      </div>
+
+      {% if position.total_votes == 0 %}
+        <div class="no-votes">No votes recorded for this position.</div>
+      {% else %}
+        {% for candidate in position.candidates %}
+        <div class="candidate-row {% if candidate.is_winner %}winner{% endif %}">
+
+          {% if candidate.is_winner %}
+          <div class="crown-badge">👑 Winner</div>
+          {% endif %}
+
+          <!-- Photo -->
+          {% if candidate.photo %}
+            <img
+              src="{% if candidate.photo.name|slice:':7' == 'voting/' %}{% static candidate.photo.name %}{% else %}{{ candidate.photo.url }}{% endif %}"
+              alt="{{ candidate.name }}"
+              class="cand-photo {% if candidate.is_winner %}winner-img{% endif %}"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+            />
+            <div class="cand-avatar" style="display:none;">
+              {{ candidate.name|slice:":1" }}{{ candidate.name|slice:"candidate.name.rfind(' ')+1:candidate.name.rfind(' ')+2" }}
+            </div>
+          {% else %}
+            <div class="cand-avatar">{{ candidate.name|slice:":2" }}</div>
+          {% endif %}
+
+          <!-- Symbol -->
+          {% if candidate.symbol %}
+            <img
+              src="{% if candidate.symbol.name|slice:':7' == 'voting/' %}{% static candidate.symbol.name %}{% else %}{{ candidate.symbol.url }}{% endif %}"
+              alt="symbol"
+              class="cand-symbol"
+              onerror="this.style.display='none';"
+            />
+          {% endif %}
+
+          <!-- Info + Bar -->
+          <div class="cand-info">
+            <div class="cand-name">{{ candidate.name }}</div>
+            {% if candidate.class_name and candidate.class_name != "N/A" %}
+              <div class="cand-class">{{ candidate.class_name }}</div>
+            {% endif %}
+            <div class="vote-bar-wrap">
+              <div class="vote-bar-track">
+                <div
+                  class="vote-bar-fill"
+                  style="--bar-pct: {{ candidate.pct }}%"
+                ></div>
+              </div>
+              <div class="vote-count">{{ candidate.votes }} ({{ candidate.pct }}%)</div>
+            </div>
+          </div>
+
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="footer">
+    {{ election.school_name }} &nbsp;·&nbsp; {{ election.title }} &nbsp;·&nbsp; Official Election Results
+    {% if election.results_published %}
+      &nbsp;·&nbsp; ✅ Officially Published
+    {% endif %}
+  </div>
+
+  <!-- ── Publish Toggle Script ── -->
+  {% if is_superuser %}
+  <script>
+    const ELECTION_ID = {{ election.id }};
+    const CSRF_TOKEN = '{{ csrf_token }}';
+
+    // ── Publish toggle ────────────────────────────────────────────
+    async function togglePublish() {
+      const btn = document.getElementById('btn-publish');
+      btn.disabled = true;
+      btn.textContent = 'Updating…';
+      try {
+        const res = await fetch(`/api/elections/${ELECTION_ID}/publish/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN,
+          },
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) throw new Error('Request failed');
+        window.location.reload();
+      } catch (e) {
+        alert('Failed to update publish status. Please try again.');
+        btn.disabled = false;
+        btn.textContent = btn.classList.contains('unpublish') ? '🔒 Unpublish Results' : '✅ Publish Results';
+      }
+    }
+
+    // ── User lock panel ───────────────────────────────────────────
+    let lockPanelOpen = false;
+    let usersCache = [];
+
+    function toggleLockPanel() {
+      lockPanelOpen = !lockPanelOpen;
+      const panel = document.getElementById('lock-panel');
+      panel.classList.toggle('open', lockPanelOpen);
+      if (lockPanelOpen && usersCache.length === 0) loadUsers();
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/admin/users/');
+        if (!res.ok) throw new Error('Failed to load users');
+        const data = await res.json();
+        usersCache = data.users;
+        renderUsers(usersCache);
+      } catch (e) {
+        document.getElementById('lock-users-grid').innerHTML =
+          '<div style="color:#dc2626;font-size:13px;">⚠️ Failed to load users.</div>';
+      }
+    }
+
+    function renderUsers(users) {
+      const grid = document.getElementById('lock-users-grid');
+      if (!users.length) {
+        grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No invigilator accounts found.</div>';
+        return;
+      }
+      grid.innerHTML = users.map(u => `
+        <div class="user-lock-card ${u.is_locked ? 'locked' : ''}" id="user-card-${u.id}">
+          <div class="user-avatar">${u.username.slice(0, 1).toUpperCase()}</div>
+          <div class="user-info">
+            <div class="user-name">${u.username}</div>
+            <div class="user-role">${u.is_staff ? 'Staff / Invigilator' : 'Invigilator'}</div>
+          </div>
+          <button
+            id="btn-lock-${u.id}"
+            class="btn-lock-toggle ${u.is_locked ? 'unlock-it' : 'lock-it'}"
+            onclick="toggleUserLock(${u.id})"
+          >
+            ${u.is_locked ? '✅ Unlock' : '🔒 Lock'}
+          </button>
+        </div>
+      `).join('');
+    }
+
+    async function toggleUserLock(userId) {
+      const btn = document.getElementById(`btn-lock-${userId}`);
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        const res = await fetch(`/api/admin/users/${userId}/lock/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+          body: JSON.stringify({ reason: 'Locked by admin to freeze entries before result publication' }),
+        });
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        // Update cache
+        const u = usersCache.find(x => x.id === userId);
+        if (u) u.is_locked = data.is_locked;
+        // Update card UI without full re-render
+        const card = document.getElementById(`user-card-${userId}`);
+        card.classList.toggle('locked', data.is_locked);
+        btn.disabled = false;
+        btn.textContent = data.is_locked ? '✅ Unlock' : '🔒 Lock';
+        btn.className = `btn-lock-toggle ${data.is_locked ? 'unlock-it' : 'lock-it'}`;
+      } catch (e) {
+        alert('Failed to update lock status. Please try again.');
+        btn.disabled = false;
+        renderUsers(usersCache);
+      }
+    }
+
+    async function lockAllUsers() {
+      const unlocked = usersCache.filter(u => !u.is_locked);
+      for (const u of unlocked) await toggleUserLock(u.id);
+    }
+
+    async function unlockAllUsers() {
+      const locked = usersCache.filter(u => u.is_locked);
+      for (const u of locked) await toggleUserLock(u.id);
+    }
+  </script>
+  {% endif %}
+
+  <!-- ── Confetti on Publish ── -->
+  {% if election.results_published %}
+  <script>
+    (function launchConfetti() {
+      const canvas = document.createElement('canvas');
+      Object.assign(canvas.style, {
+        position: 'fixed', top: 0, left: 0,
+        width: '100%', height: '100%',
+        pointerEvents: 'none', zIndex: 9999
+      });
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      document.body.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+      const COLORS = ['#4f46e5','#f59e0b','#22c55e','#ec4899','#06b6d4','#f97316','#a855f7'];
+      const pieces = Array.from({length: 90}, () => ({
+        x: Math.random() < .5 ? Math.random() * 200 : canvas.width - Math.random() * 200,
+        y: canvas.height + 20,
+        r: Math.random() * 7 + 4,
+        d: Math.random() * 80 + 40,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        tilt: Math.random() * 10 - 5,
+        tiltAngle: 0,
+        tiltDelta: (Math.random() * 0.07 + 0.05) * (Math.random() < .5 ? 1 : -1),
+        vy: -(Math.random() * 8 + 6),
+        vx: (Math.random() - .5) * 5,
+        gravity: .18,
+      }));
+      const start = performance.now();
+      function animate(now) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        for (const p of pieces) {
+          p.tiltAngle += p.tiltDelta;
+          p.vy += p.gravity;
+          p.y += p.vy;
+          p.x += p.vx;
+          p.tilt = Math.sin(p.tiltAngle) * 12;
+          if (p.y < canvas.height + 20) alive = true;
+          ctx.save();
+          ctx.beginPath();
+          ctx.fillStyle = p.color;
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.tiltAngle);
+          ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r * 2.2);
+          ctx.restore();
+        }
+        if (alive && now - start < 5000) requestAnimationFrame(animate);
+        else canvas.remove();
+      }
+      requestAnimationFrame(animate);
+    })();
+  </script>
+  {% endif %}
+
+  <!-- ── Printable Report Container (Hidden on Screen) ── -->
+  <div class="print-report-container">
+    <div class="print-header">
+      <!-- Left side: Brand Logo -->
+      <div class="print-logo-wrap">
+        <img src="{% static 'voting/photos/aitute_logo.webp' %}" alt="Aitute Logo" class="print-logo" />
+      </div>
+      
+      <!-- Center: School Name / Subtitle -->
+      <div class="print-header-text">
+        <h2>{{ election.school_name }}</h2>
+        <p class="print-subtitle">Official Student Representation Body</p>
+      </div>
+
+      <!-- Right side: School Logo (if exists) -->
+      {% if election.logo %}
+      <div class="print-logo-wrap">
+        <img src="{{ election.logo_url }}" alt="{{ election.school_name }} Logo" class="print-logo" onerror="this.closest('.print-logo-wrap').style.display='none';" />
+      </div>
+      {% endif %}
+    </div>
+    
+    <div class="print-divider"></div>
+    
+    <div class="print-title-area">
+      <h1 class="print-report-title">OFFICIAL ELECTION RESULTS REPORT</h1>
+      <div class="print-status-badge {% if election.results_published %}certified{% else %}draft{% endif %}">
+        {% if election.results_published %}OFFICIALLY CERTIFIED{% else %}OFFICIAL PREVIEW DRAFT{% endif %}
+      </div>
+    </div>
+    
+    <div class="print-metadata-box">
+      <div class="print-meta-item">
+        <strong>Election Title:</strong> <span>{{ election.title }}</span>
+      </div>
+      <div class="print-meta-item">
+        <strong>Institution:</strong> <span>{{ election.school_name }}</span>
+      </div>
+      <div class="print-meta-item">
+        <strong>Total Ballots Cast:</strong> <span>{{ total_submitted }} votes</span>
+      </div>
+      <div class="print-meta-item">
+        <strong>Date Generated:</strong> <span id="print-current-date"></span>
+      </div>
+    </div>
+    
+    <div class="print-section print-breakdown">
+      <h3>Election Results by Position</h3>
+      
+      {% for position in positions %}
+      <div class="print-position-block">
+        <div class="print-position-header">
+          <span class="print-pos-icon">{{ position.icon }}</span>
+          <span class="print-pos-name">{{ position.name }}</span>
+          <span class="print-pos-total">Total Votes: {{ position.total_votes }}</span>
+        </div>
+        
+        {% if position.total_votes == 0 %}
+          <p class="print-no-votes">No votes recorded for this position.</p>
+        {% else %}
+          <table class="print-results-table">
+            <thead>
+              <tr>
+                <th style="width: 8%;">Photo</th>
+                <th style="width: 35%;">Candidate Name</th>
+                <th style="width: 12%;">Symbol</th>
+                <th style="width: 15%; text-align: right;">Votes</th>
+                <th style="width: 20%; text-align: left;">Share (%)</th>
+                <th style="width: 10%; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for candidate in position.candidates %}
+              <tr class="{% if candidate.is_winner %}winner-row{% endif %}">
+                <td class="print-td-photo">
+                  {% if candidate.photo %}
+                    <img src="{% if candidate.photo.name|slice:':7' == 'voting/' %}{% static candidate.photo.name %}{% else %}{{ candidate.photo.url }}{% endif %}" alt="" class="print-cand-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+                    <div class="print-cand-avatar" style="display:none;">{{ candidate.name|slice:":1" }}</div>
+                  {% else %}
+                    <div class="print-cand-avatar">{{ candidate.name|slice:":1" }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="print-cand-name">{{ candidate.name }}</div>
+                  {% if candidate.class_name and candidate.class_name != "N/A" %}
+                    <div class="print-cand-class">{{ candidate.class_name }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if candidate.symbol %}
+                    <img src="{% if candidate.symbol.name|slice:':7' == 'voting/' %}{% static candidate.symbol.name %}{% else %}{{ candidate.symbol.url }}{% endif %}" alt="" class="print-cand-symbol" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+                    <span class="print-muted" style="display:none;">-</span>
+                  {% else %}
+                    <span class="print-muted">-</span>
+                  {% endif %}
+                </td>
+                <td style="text-align: right; font-weight: 700;">{{ candidate.votes }}</td>
+                <td>
+                  <div class="print-bar-container">
+                    <div class="print-bar-fill" style="width: {{ candidate.pct }}%;"></div>
+                    <span class="print-pct-val">{{ candidate.pct }}%</span>
+                  </div>
+                </td>
+                <td style="text-align: center;">
+                  {% if candidate.is_winner %}
+                    <span class="print-winner-badge">👑 WINNER</span>
+                  {% else %}
+                    <span class="print-muted">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    
+    <div class="print-footer">
+      <div class="print-footer-left">
+        E-Voting Portal — System-Generated Official Report
+      </div>
+      <div class="print-footer-right">
+        Official Result Announcement Summary
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PDF Generation & Date Scripts ── -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    function setPrintDate() {
+      const dateSpan = document.querySelector('.print-report-container #print-current-date');
+      if (dateSpan) {
+        dateSpan.textContent = new Date().toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', setPrintDate);
+    window.addEventListener('beforeprint', setPrintDate);
+    
+    
+  </script>
+</body>
+</html>

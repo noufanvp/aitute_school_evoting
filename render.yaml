@@ -1,0 +1,72 @@
+## ---------------------------------------------------------------------------
+## Render Blueprint (render.yaml)
+## School E-Voting Kiosk — IaC for Render Free Tier
+##
+## Deploy instructions:
+##   1. Push this repo to GitHub.
+##   2. Go to render.com → New → Blueprint → select this repo.
+##   3. Render auto-provisions the database and web service in one click.
+##   4. After first deploy, open the web service shell and run:
+##        python manage.py createsuperuser
+##        python manage.py seed_election   # optional sample data
+## ---------------------------------------------------------------------------
+
+databases:
+  ## ── PostgreSQL — 30-day free tier (sufficient for a one-day election) ──
+  - name: evoting-db
+    plan: free
+    databaseName: evoting_db
+    user: evoting_user
+
+services:
+  ## ── Django Web Service ──────────────────────────────────────────────────
+  - type: web
+    name: school-evoting
+    plan: free
+    runtime: python
+
+    ## Build: install all dependencies from requirements.txt
+    buildCommand: "pip install -r requirements.txt"
+
+    ## Start: run migrations first (atomic, safe on every deploy), then Gunicorn.
+    ## NOTE: 'config.wsgi:application' matches this project's actual WSGI path.
+    ##       The user's prompt referenced 'school_evoting.wsgi' — that path does
+    ##       not exist in this codebase; 'config.wsgi' is the correct module.
+    startCommand: >-
+      python manage.py migrate --noinput &&
+      python manage.py collectstatic --noinput &&
+      python manage.py setup_render &&
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:$PORT
+      --workers 2
+      --timeout 120
+      --access-logfile -
+      --error-logfile -
+
+    envVars:
+      ## Wires Render's managed Postgres connection string automatically.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: evoting-db
+          property: connectionString
+
+      ## Render generates and injects a cryptographically secure random value.
+      - key: SECRET_KEY
+        generateValue: true
+
+      ## Disables Django debug mode in production.
+      - key: DEBUG
+        value: "False"
+
+      ## Activates settings_prod.py (HTTPS redirect, HSTS, secure cookies).
+      - key: DJANGO_ENV
+        value: "prod"
+
+      ## Render auto-injects RENDER_EXTERNAL_HOSTNAME — settings_base.py reads
+      ## it to populate ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS dynamically.
+      ## No manual entry needed; listed here for documentation clarity only.
+      # - key: RENDER_EXTERNAL_HOSTNAME   # auto-injected by Render
+
+      ## Optional: override the default timezone (Asia/Kolkata).
+      # - key: DJANGO_TIME_ZONE
+      #   value: "Asia/Kolkata"

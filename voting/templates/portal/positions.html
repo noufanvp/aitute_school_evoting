@@ -1,0 +1,247 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Manage Positions — {{ election.title }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{% url 'portal-home' %}" class="bc-item">Dashboard</a>
+  <span class="bc-sep">›</span>
+  <span class="bc-item">{{ election.school_name }}</span>
+  <span class="bc-sep">›</span>
+  <span class="bc-item active">Positions</span>
+{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'portal-election-edit' election.id %}" class="btn btn-sm btn-ghost" style="display: inline-flex; align-items: center; gap: 6px;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+    Edit Election
+  </a>
+  {% if election.school_slug %}
+    <a href="/vote/{{ election.school_slug }}/" target="_blank" class="btn btn-sm btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+      View Kiosk
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="positions-page">
+
+  <!-- ── Election Info Banner ── -->
+  <div class="election-banner status-{{ election.status }}">
+    <div class="banner-left">
+      <div class="banner-title">{{ election.title }}</div>
+      <div class="banner-sub">{{ election.school_name }}</div>
+    </div>
+    <div class="banner-right">
+      <span class="status-badge status-{{ election.status }}" style="display: inline-flex; align-items: center; gap: 6px;">
+        {% if election.status == 'open' %}
+          <span style="width: 6px; height: 6px; background-color: var(--success); border-radius: 50%; display: inline-block;"></span>Open
+        {% elif election.status == 'closed' %}
+          <span style="width: 6px; height: 6px; background-color: var(--danger); border-radius: 50%; display: inline-block;"></span>Closed
+        {% else %}
+          <span style="width: 6px; height: 6px; background-color: var(--text-dim); border-radius: 50%; display: inline-block;"></span>Draft
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Add Position Form ── -->
+  <div class="section-card">
+    <h3 class="section-card-title" style="display: flex; align-items: center; gap: 8px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      Add Position
+    </h3>
+    <form method="post" action="{% url 'portal-position-create' election.id %}" class="add-position-form">
+      {% csrf_token %}
+      <div class="inline-form">
+        <div class="emoji-picker-wrap">
+          <input type="text" name="icon" id="position-icon" class="form-input icon-input"
+                 value="🗳️" maxlength="8" placeholder="🗳️" title="Emoji icon" />
+        </div>
+        <input type="text" name="name" class="form-input flex-1"
+               placeholder="Position name (e.g. Head Boy, Sports Captain)" required />
+        <button type="submit" class="btn btn-primary">Add Position</button>
+      </div>
+    </form>
+    <div class="emoji-options" id="emoji-options">
+      {% for em in "👑🌟🎨📚🏆🎭🎯💡🌍🎵🔬📝🏅🎤🌺"|make_list %}
+        <button type="button" class="emoji-btn" onclick="document.getElementById('position-icon').value='{{ em }}'">{{ em }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Positions List ── -->
+  {% if positions %}
+  <div class="section-card">
+    <div class="section-card-header">
+      <h3 class="section-card-title" style="display: flex; align-items: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        Positions ({{ positions|length }})
+      </h3>
+      <span class="hint-text">Drag to reorder</span>
+    </div>
+
+    <div class="positions-list" id="positions-list">
+      {% for position in positions %}
+      <div class="position-row" data-pos-id="{{ position.id }}">
+        <div class="drag-handle" title="Drag to reorder">⠿</div>
+
+        <div class="pos-icon">{{ position.icon|default:"🗳️" }}</div>
+        <div class="pos-info">
+          <div class="pos-name">{{ position.name }}</div>
+          <div class="pos-candidates">{{ position.candidates.count }} candidate{% if position.candidates.count != 1 %}s{% endif %}</div>
+        </div>
+
+        <!-- Candidates for this position (collapsible) -->
+        <div class="pos-actions">
+          <a href="{% url 'portal-candidate-create' position.id %}" class="btn btn-sm btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Add Candidate
+          </a>
+          <button class="btn btn-sm btn-ghost" onclick="toggleCandidates({{ position.id }})" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><span class="nav-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></span></svg>
+            View
+          </button>
+          <form method="post" action="{% url 'portal-position-delete' position.id %}"
+                onsubmit="return confirm('Delete position \'{{ position.name|escapejs }}\' and all its candidates?')"
+                style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-danger" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Candidates sub-list (hidden by default) -->
+      <div class="candidates-sub" id="candidates-{{ position.id }}" style="display:none">
+        {% if position.candidates.all %}
+          <div class="candidates-table">
+            {% for c in position.candidates.all %}
+            <div class="candidate-row">
+              <div class="cand-thumb">
+                {% if c.photo %}
+                  {% if c.photo.name|slice:":7" == "voting/" %}
+                    <img src="/static/{{ c.photo.name }}" alt="{{ c.name }}" />
+                  {% else %}
+                    <img src="{{ c.photo.url }}" alt="{{ c.name }}" />
+                  {% endif %}
+                {% else %}
+                  <div class="cand-initials">{{ c.name|first|upper }}</div>
+                {% endif %}
+              </div>
+              <div class="cand-info">
+                <div class="cand-name">{{ c.name }}{% if c.is_nota %} <span class="nota-tag">NOTA</span>{% endif %}</div>
+                {% if c.class_name %}<div class="cand-class">{{ c.class_name }}</div>{% endif %}
+              </div>
+              <div class="cand-symbol">
+                {% if c.symbol %}
+                  {% if c.symbol.name|slice:":7" == "voting/" %}
+                    <img src="/static/{{ c.symbol.name }}" alt="symbol" class="symbol-thumb" />
+                  {% else %}
+                    <img src="{{ c.symbol.url }}" alt="symbol" class="symbol-thumb" />
+                  {% endif %}
+                {% endif %}
+              </div>
+              <div class="cand-actions">
+                <a href="{% url 'portal-candidate-edit' c.id %}" class="btn btn-xs btn-ghost" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+                </a>
+                <form method="post" action="{% url 'portal-candidate-delete' c.id %}"
+                      onsubmit="return confirm('Delete {{ c.name|escapejs }}?')" style="display:inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-xs btn-danger" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  </button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-candidates">No candidates yet. <a href="{% url 'portal-candidate-create' position.id %}">Add one →</a></div>
+        {% endif %}
+      </div>
+
+      {% endfor %}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+    </div>
+    <h3>No positions yet</h3>
+    <p>Add positions like "Head Boy", "Sports Captain", etc. above.</p>
+  </div>
+  {% endif %}
+
+  <!-- ── Footer Actions ── -->
+  <div class="page-footer-actions">
+    <a href="{% url 'portal-home' %}" class="btn btn-ghost">← Back to Dashboard</a>
+    {% if election.school_slug %}
+      <a href="/results/{{ election.id }}/" target="_blank" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        View Results
+      </a>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleCandidates(posId) {
+  const el = document.getElementById(`candidates-${posId}`);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Drag-to-reorder positions ──
+(function() {
+  const list = document.getElementById('positions-list');
+  if (!list) return;
+  let dragged = null;
+
+  list.querySelectorAll('.position-row').forEach(row => {
+    row.setAttribute('draggable', 'true');
+    row.addEventListener('dragstart', e => {
+      dragged = row;
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      saveOrder();
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      const after = getDragAfterElement(list, e.clientY);
+      if (after == null) list.appendChild(dragged);
+      else list.insertBefore(dragged, after);
+    });
+  });
+
+  function getDragAfterElement(container, y) {
+    const rows = [...container.querySelectorAll('.position-row:not(.dragging)')];
+    return rows.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) return { offset, element: child };
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  function saveOrder() {
+    const ids = [...list.querySelectorAll('.position-row')].map(r => r.dataset.posId);
+    fetch('/portal/positions/reorder/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+      body: JSON.stringify({ order: ids })
+    }).then(r => r.ok && showToast('Order saved!'));
+  }
+})();
+</script>
+{% endblock %}

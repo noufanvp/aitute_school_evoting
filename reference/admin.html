@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="School E-Voting System — Admin Panel for managing students, candidates and viewing results." />
+  <title>E-Voting | Admin Panel</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     ADMIN PAGE LAYOUT
+══════════════════════════════════════════ -->
+<div class="admin-page" id="adminPage">
+
+  <!-- ─────────────────────────────────────
+       TOP HEADER
+  ───────────────────────────────────────── -->
+  <header class="admin-header" id="adminHeader">
+    <div class="admin-header-left">
+      <div class="admin-logo">🛡️</div>
+      <div class="admin-header-info">
+        <div class="admin-header-title">Admin Panel</div>
+        <div class="admin-header-sub">🏫 Sunrise Public School &nbsp;|&nbsp; Student Council Elections 2026–27</div>
+      </div>
+    </div>
+    <div class="admin-header-right">
+      <div class="admin-header-datetime">
+        <div class="admin-header-time" id="adminTime">--:--:--</div>
+        <div class="admin-header-date" id="adminDate">---</div>
+      </div>
+      <a href="index.html" class="nav-link-btn" id="goToInvigilatorBtn">
+        📋 Invigilator Panel
+      </a>
+    </div>
+  </header>
+
+  <!-- ─────────────────────────────────────
+       MAIN CONTENT
+  ───────────────────────────────────────── -->
+  <main class="admin-main" id="adminMain">
+
+    <!-- Page Title -->
+    <div class="admin-page-title">
+      <h1>Admin Control Panel</h1>
+      <p>Manage students, candidates, and view live election results.</p>
+    </div>
+
+    <!-- ────── Grid Layout ────── -->
+    <div class="admin-grid">
+
+      <!-- ── Column 1: Add Student ── -->
+      <section class="admin-card" id="addStudentCard">
+        <div class="admin-card-header">
+          <div class="admin-card-icon primary">👥</div>
+          <div>
+            <div class="admin-card-title">Add Student</div>
+            <div class="admin-card-sub">Register a new voter</div>
+          </div>
+        </div>
+        <div class="admin-card-body">
+          <form class="admin-form" id="addStudentForm" autocomplete="off">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="studentRollNo">Roll No</label>
+                <input id="studentRollNo" class="form-control" type="text" placeholder="001" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="studentAdmNo">Admission No</label>
+                <input id="studentAdmNo" class="form-control" type="text" placeholder="ADM2024001" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="studentName">Full Name</label>
+              <input id="studentName" class="form-control" type="text" placeholder="Student Full Name" required />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="studentClass">Class</label>
+                <select id="studentClass" class="form-control" required>
+                  <option value="">Class</option>
+                  <option>1</option><option>2</option><option>3</option>
+                  <option>4</option><option>5</option><option>6</option>
+                  <option>7</option><option>8</option><option>9</option>
+                  <option>10</option><option>11</option><option>12</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="studentDiv">Division</label>
+                <select id="studentDiv" class="form-control" required>
+                  <option value="">Div</option>
+                  <option>A</option><option>B</option><option>C</option><option>D</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="studentGender">Gender</label>
+              <select id="studentGender" class="form-control">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="addStudentBtn">
+              <span>➕</span> Add Student
+            </button>
+          </form>
+
+          <!-- Student count badge -->
+          <div class="student-count-bar" id="studentCountBar">
+            <span class="student-count-label">Total Students Registered:</span>
+            <span class="student-count-value badge badge-primary" id="studentCountBadge">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Column 2: Add Candidate ── -->
+      <section class="admin-card" id="addCandidateCard">
+        <div class="admin-card-header">
+          <div class="admin-card-icon success">🎖️</div>
+          <div>
+            <div class="admin-card-title">Add Candidate</div>
+            <div class="admin-card-sub">Register an election candidate</div>
+          </div>
+        </div>
+        <div class="admin-card-body">
+          <form class="admin-form" id="addCandidateForm" autocomplete="off">
+            <div class="form-group">
+              <label class="form-label" for="candName">Candidate Name</label>
+              <input id="candName" class="form-control" type="text" placeholder="Full Name" required />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="candClass">Class</label>
+                <select id="candClass" class="form-control" required>
+                  <option value="">Class</option>
+                  <option>7</option><option>8</option><option>9</option>
+                  <option>10</option><option>11</option><option>12</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="candDiv">Division</label>
+                <select id="candDiv" class="form-control" required>
+                  <option value="">Div</option>
+                  <option>A</option><option>B</option><option>C</option><option>D</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="candPosition">Position / Role</label>
+              <select id="candPosition" class="form-control" required>
+                <option value="">Select position…</option>
+                <option value="School President">👑 School President</option>
+                <option value="Vice President">🌟 Vice President</option>
+                <option value="General Secretary">📋 General Secretary</option>
+                <option value="Treasurer">💰 Treasurer</option>
+                <option value="Sports Captain">🏆 Sports Captain</option>
+                <option value="Cultural Secretary">🎭 Cultural Secretary</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="candSymbol">Symbol (emoji)</label>
+              <input id="candSymbol" class="form-control" type="text" placeholder="⭐ 🌟 🔥 💎" maxlength="4" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="candPhoto">Photo Path <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+              <input id="candPhoto" class="form-control" type="text" placeholder="photos/m1.png" />
+            </div>
+            <button type="submit" class="btn btn-success btn-block" id="addCandidateBtn">
+              <span>✨</span> Add Candidate
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ── Column 3 (wide): Results & Candidates ── -->
+      <section class="admin-card results-card" id="resultsCard">
+        <div class="admin-card-header">
+          <div class="admin-card-icon accent">🏆</div>
+          <div>
+            <div class="admin-card-title">Election Results</div>
+            <div class="admin-card-sub">Live vote tallies per position</div>
+          </div>
+          <div class="results-header-actions">
+            <span class="badge badge-primary" id="totalVotesBadge">0 Votes Cast</span>
+          </div>
+        </div>
+        <div class="admin-card-body">
+          <div id="resultsContainer">
+            <!-- JS rendered -->
+          </div>
+          <div class="empty-results" id="emptyResults" style="display:none">
+            <div class="empty-results-icon">🏅</div>
+            <div class="empty-results-title">No Candidates Yet</div>
+            <div class="empty-results-text">Add candidates using the form on the left to see results here.</div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /admin-grid -->
+
+    <!-- ── Danger Zone ── -->
+    <section class="admin-card danger-card" id="dangerZoneCard">
+      <div class="admin-card-header">
+        <div class="admin-card-icon danger">⚠️</div>
+        <div>
+          <div class="admin-card-title">Danger Zone</div>
+          <div class="admin-card-sub">Irreversible actions — proceed with caution</div>
+        </div>
+      </div>
+      <div class="admin-card-body danger-body">
+        <div class="danger-item">
+          <div class="danger-item-info">
+            <div class="danger-item-title">Reset All Votes &amp; Data</div>
+            <div class="danger-item-desc">Clears all votes and restores the system to the original demo data. This cannot be undone.</div>
+          </div>
+          <button class="btn btn-danger" id="resetAllDataBtn">
+            🗑️ Reset All Data
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- /admin-main -->
+</div><!-- /admin-page -->
+
+
+<!-- ══════════════════════════════════════════
+     TOAST CONTAINER
+══════════════════════════════════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+
+<script src="js/data.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

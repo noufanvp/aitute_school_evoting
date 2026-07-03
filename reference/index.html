@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="School E-Voting System — Invigilator Control Panel for activating and monitoring student voting sessions." />
+  <title>E-Voting | Invigilator Panel</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/invigilator.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     APP LAYOUT
+══════════════════════════════════════════ -->
+<div class="app-layout" id="appLayout">
+
+
+
+  <!-- ─────────────────────────────────────
+       MAIN PANEL
+  ───────────────────────────────────────── -->
+  <main class="main-panel">
+
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="header-school">
+          <div class="header-school-name">🏫 Sunrise Public School</div>
+          <div class="header-election-name">Student Council Elections 2026–27 &nbsp;|&nbsp; Invigilator Panel</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="voterWindowStatus" class="voter-status offline">
+          <div class="voter-status-dot"></div>
+          <span>Voter Window</span>
+        </div>
+        <div class="header-datetime">
+          <div class="header-time" id="headerTime">--:--:--</div>
+          <div class="header-date" id="headerDate">---</div>
+        </div>
+        <a href="admin.html" class="admin-nav-btn" id="goToAdminBtn" title="Open Admin Panel">
+          🛡️ Admin Panel
+        </a>
+        <button class="voter-window-btn" id="openVoterWindowBtn" title="Open Voter Window">
+          📺 Open Voter Window
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="page-content">
+
+      <!-- Stats Bar -->
+      <div class="stats-bar" id="statsBar">
+        <div class="stat-card">
+          <div class="stat-icon primary">👥</div>
+          <div class="stat-body">
+            <div class="stat-value" id="statTotalStudents">0</div>
+            <div class="stat-label">Total Students</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon success">✅</div>
+          <div class="stat-body">
+            <div class="stat-value" id="statVotedCount">0</div>
+            <div class="stat-label">Votes Cast</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon warning">⏳</div>
+          <div class="stat-body">
+            <div class="stat-value" id="statPendingCount">0</div>
+            <div class="stat-label">Pending</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon accent">🎯</div>
+          <div class="stat-body">
+            <div class="stat-value" id="statTurnout">0%</div>
+            <div class="stat-label">Voter Turnout</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Section -->
+      <div class="filter-section">
+        <div class="filter-section-title">
+          🔍 Filter &amp; Search Students
+        </div>
+        <div class="filter-row">
+          <div class="form-group">
+            <label class="form-label" for="filterClass">Class</label>
+            <select id="filterClass" class="form-control">
+              <option value="">All Classes</option>
+              <option>1</option><option>2</option><option>3</option>
+              <option>4</option><option>5</option><option>6</option>
+              <option>7</option><option>8</option><option>9</option>
+              <option>10</option><option>11</option><option>12</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="filterDivision">Division</label>
+            <select id="filterDivision" class="form-control">
+              <option value="">All Divisions</option>
+              <option>A</option><option>B</option><option>C</option><option>D</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="filterStatus">Status</label>
+            <select id="filterStatus" class="form-control">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="voted">Voted</option>
+            </select>
+          </div>
+          <div class="form-group search-group">
+            <label class="form-label" for="searchInput">Search</label>
+            <div class="search-wrapper">
+              <span class="search-icon">🔍</span>
+              <input id="searchInput" class="form-control" type="text"
+                     placeholder="Search by name, roll no or admission no…" />
+            </div>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" id="viewDetailsBtn">
+              <span>📋</span> View Details
+            </button>
+            <button class="btn btn-ghost" id="clearFiltersBtn" title="Clear Filters">
+              ✕ Clear
+            </button>
+          </div>
+        </div>
+        <div class="filter-chips" id="filterChips"></div>
+      </div>
+
+      <!-- Students Table -->
+      <div class="table-section">
+        <div class="table-header">
+          <div class="table-title">
+            👩‍🎓 Student Voter List
+          </div>
+          <div class="table-meta">
+            <span class="table-count" id="tableCountLabel">Showing 0 students</span>
+            <span class="badge badge-primary" id="activeFilterBadge" style="display:none">Filtered</span>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="students-table" id="studentsTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Roll No</th>
+                <th>Admission No</th>
+                <th>Student Name</th>
+                <th>Class / Div</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="studentsTableBody">
+              <!-- JS Rendered -->
+            </tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="emptyState" style="display:none">
+          <div class="empty-state-icon">🔎</div>
+          <div class="empty-state-title">No students found</div>
+          <div class="empty-state-text">Try adjusting your filters or add students using the Admin Panel.</div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </main>
+</div><!-- /app-layout -->
+
+
+<!-- ══════════════════════════════════════════
+     INVIGILATOR CONFIRMATION MODAL
+══════════════════════════════════════════ -->
+<div class="modal-overlay invigi-modal" id="invigiModal" role="dialog" aria-modal="true" aria-labelledby="invigiModalTitle">
+  <div class="modal">
+    <div class="invigi-modal-icon">🗳️</div>
+    <h2 class="invigi-modal-title" id="invigiModalTitle">Activate Voting Session</h2>
+    <p class="invigi-modal-subtitle">Review voter details before activating the voter window.</p>
+
+    <div class="voter-info-card">
+      <div class="voter-info-grid">
+        <div class="voter-info-item">
+          <span class="voter-info-label">Student Name</span>
+          <span class="voter-info-value" id="modalVoterName">—</span>
+        </div>
+        <div class="voter-info-item">
+          <span class="voter-info-label">Roll No</span>
+          <span class="voter-info-value" id="modalVoterRoll">—</span>
+        </div>
+        <div class="voter-info-item">
+          <span class="voter-info-label">Class</span>
+          <span class="voter-info-value" id="modalVoterClass">—</span>
+        </div>
+        <div class="voter-info-item">
+          <span class="voter-info-label">Division</span>
+          <span class="voter-info-value" id="modalVoterDiv">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="countdown-section">
+      <div class="countdown-label">⏱ Voter Window Auto-Closes In</div>
+      <div class="countdown-timer" id="invigiCountdownDisplay">60</div>
+      <div class="countdown-bar">
+        <div class="countdown-bar-fill" id="invigiCountdownBar" style="width:100%"></div>
+      </div>
+    </div>
+
+    <div class="invigi-modal-actions">
+      <button class="btn btn-ghost" id="invigiCancelBtn">
+        ✕ Cancel Session
+      </button>
+      <button class="btn btn-primary" id="invigiConfirmBtn">
+        🗳️ Activate Voter Window
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     TOAST CONTAINER
+══════════════════════════════════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+
+<script src="js/data.js"></script>
+<script src="js/invigilator.js"></script>
+</body>
+</html>

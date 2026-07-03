@@ -1,0 +1,143 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{% if is_create %}New Invigilator{% else %}Edit Invigilator{% endif %}{% endblock %}
+{% block nav_invigilators %}active{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{% url 'portal-home' %}" class="bc-item">Dashboard</a>
+  <span class="bc-sep">›</span>
+  <a href="{% url 'portal-invigilators' %}" class="bc-item">Invigilators</a>
+  <span class="bc-sep">›</span>
+  <span class="bc-item active">{% if is_create %}New Invigilator{% else %}Edit: {{ user_obj.username }}{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    <div class="form-card-header">
+      <div class="form-card-icon" style="display: flex; align-items: center; justify-content: center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      </div>
+      <div>
+        <h1 class="form-card-title">{% if is_create %}Create Invigilator Account{% else %}Edit Invigilator Account{% endif %}</h1>
+        <p class="form-card-sub">
+          {% if is_create %}
+            Set up a school-specific invigilator user account for kiosk authentication.
+          {% else %}
+            Update credentials or school assignment details for this account.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <form method="post" class="portal-form">
+      {% csrf_token %}
+
+      <!-- Account Credentials -->
+      <fieldset class="form-section">
+        <legend class="form-section-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          Account Credentials
+        </legend>
+
+        <div class="form-group">
+          <label class="form-label" for="username">Username <span class="required">*</span></label>
+          <input type="text" id="username" name="username"
+                 class="form-input {% if errors.username %}input-error{% endif %}"
+                 value="{{ form.username|default:'' }}"
+                 placeholder="e.g. invigilator_schoola"
+                 {% if not is_create %}disabled{% endif %}
+                 required />
+          {% if errors.username %}<span class="field-error">{{ errors.username }}</span>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="full_name">Full Name <span class="form-hint">optional</span></label>
+          <input type="text" id="full_name" name="full_name"
+                 class="form-input"
+                 value="{{ form.full_name|default:'' }}"
+                 placeholder="e.g. John Doe" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">
+            Password 
+            {% if is_create %}<span class="required">*</span>{% else %}<span class="form-hint">leave blank to keep current</span>{% endif %}
+          </label>
+          <input type="password" id="password" name="password"
+                 class="form-input {% if errors.password %}input-error{% endif %}"
+                 placeholder="••••••••"
+                 {% if is_create %}required{% endif %} />
+          {% if errors.password %}<span class="field-error">{{ errors.password }}</span>{% endif %}
+        </div>
+      </fieldset>
+
+      <!-- School Assignment -->
+      <fieldset class="form-section">
+        <legend class="form-section-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"></path></svg>
+          School Assignment
+        </legend>
+
+        <div class="form-group">
+          <label class="form-label" for="school_select">Select School <span class="required">*</span></label>
+          <select id="school_select" name="school_select" class="form-input form-select" onchange="toggleCustomSchool(this.value)">
+            <option value="">-- Select a school --</option>
+            {% for school in schools %}
+              <option value="{{ school }}" {% if form.school_select == school %}selected{% endif %}>{{ school }}</option>
+            {% endfor %}
+            <option value="__custom__" {% if form.school_select not in schools and form.school_select %}selected{% endif %}>New School / School Not in List...</option>
+          </select>
+          {% if errors.school %}<span class="field-error">{{ errors.school }}</span>{% endif %}
+        </div>
+
+        <div class="form-group" id="custom_school_group" style="display:none;">
+          <label class="form-label" for="school_custom">Custom School Name <span class="required">*</span></label>
+          <input type="text" id="school_custom" name="school_custom"
+                 class="form-input"
+                 value="{% if form.school_select not in schools %}{{ form.school_select|default:'' }}{% endif %}"
+                 placeholder="e.g. Mices Public School" />
+        </div>
+
+        <div class="form-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+          <label class="toggle-label">
+            <input type="checkbox" name="exclude_votes" class="toggle-input" {% if form.exclude_votes %}checked{% endif %} />
+            <span class="toggle-slider"></span>
+            <span class="toggle-text" style="font-weight:600; color:var(--text);">Exclude votes from final results (Testing Account)</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <a href="{% url 'portal-invigilators' %}" class="btn btn-ghost">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          {% if is_create %}Create Account{% else %}Save Changes{% endif %}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleCustomSchool(val) {
+  const customGroup = document.getElementById('custom_school_group');
+  const customInput = document.getElementById('school_custom');
+  if (val === '__custom__') {
+    customGroup.style.display = 'block';
+    customInput.required = true;
+  } else {
+    customGroup.style.display = 'none';
+    customInput.required = false;
+  }
+}
+
+// Run initially to handle errors or initial edits
+document.addEventListener('DOMContentLoaded', () => {
+  toggleCustomSchool(document.getElementById('school_select').value);
+});
+</script>
+{% endblock %}
