@@ -8,6 +8,7 @@
   <meta name="csrf-token" content="{{ csrf_token }}" />
   <meta name="school-slug" content="{{ school_slug }}" />
   <meta name="current-username" content="{{ request.user.username }}" />
+  <meta name="is-test-kiosk" content="{% if is_test_kiosk %}true{% else %}false{% endif %}" />
   <title>E-Voting Kiosk</title>
   <link rel="stylesheet" href="{% static 'voting/css/style.css' %}?v=12" />
   <style>
@@ -21,7 +22,7 @@
       background: var(--surface);
       gap: 12px;
     }
-    .operator-meta { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .operator-meta { font-size: 12px; color: var(--text-muted); font-weight: 600; display: inline-flex; align-items: center; }
     .btn-start {
       height: 38px; border: none; border-radius: var(--r-md);
       padding: 0 14px; font-size: 13px; font-weight: 700; color: #fff;
@@ -34,6 +35,11 @@
       font-weight: 600; font-size: 14px;
     }
     .hidden { display: none !important; }
+    @keyframes pulse-border {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
   </style>
 </head>
 <body>
@@ -61,6 +67,10 @@
     <div class="operator-meta" id="current-voter-meta">
       Signed in as <strong>{{ request.user.username }}</strong> · Current Voter: <strong id="current-voter-name">Waiting</strong>
       <span id="current-voter-class" style="color: var(--text-dim); margin-left: 6px;"></span>
+      <div id="kiosk-countdown" style="display: none; align-items: center; gap: 6px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; margin-left: 12px; animation: pulse-border 2s infinite;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span id="kiosk-countdown-text">--s remaining</span>
+      </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px;">
       {% if request.user.is_superuser %}
@@ -75,7 +85,11 @@
         </a>
         {% endif %}
       {% endif %}
-      <button id="btn-start-session" class="btn-start">Start New Voter Session</button>
+      {% if is_test_kiosk %}
+        <button id="btn-start-session" class="btn-start" style="background: linear-gradient(135deg, #10b981, #059669);">Start Test Vote Session</button>
+      {% else %}
+        <button id="btn-start-session" class="btn-start">Start New Voter Session</button>
+      {% endif %}
       <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
         <button type="submit" class="btn-nav" style="height:38px;">Logout</button>
@@ -120,36 +134,49 @@
 
       <!-- Heading -->
       <div>
-        <h1 style="font-size:clamp(24px,4vw,40px); font-weight:800; margin-bottom:10px; background:linear-gradient(135deg,#6366f1,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Awaiting Voter Session</h1>
-        <p style="font-size:15px; color:var(--text-muted); max-width:360px; line-height:1.6;">
-          Please wait for the invigilator to verify your identity and activate this kiosk.
-        </p>
+        {% if is_test_kiosk %}
+          <h1 style="font-size:clamp(24px,4vw,40px); font-weight:800; margin-bottom:10px; background:linear-gradient(135deg,#10b981,#059669); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Test Kiosk Mode</h1>
+          <p style="font-size:15px; color:var(--text-muted); max-width:360px; line-height:1.6; margin-bottom:15px;">
+            This kiosk is in test mode. You can start a mock voting session directly. Votes will NOT count in final results.
+          </p>
+          <div style="margin: 20px 0;">
+            <button id="btn-start-test-session" class="btn-start" style="background: linear-gradient(135deg, #10b981, #059669); font-size: 16px; height: 48px; padding: 0 28px; border-radius: 8px; font-weight: 700; color: #fff; cursor: pointer; border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.2);">
+              🚀 Start Test Vote
+            </button>
+          </div>
+        {% else %}
+          <h1 style="font-size:clamp(24px,4vw,40px); font-weight:800; margin-bottom:10px; background:linear-gradient(135deg,#6366f1,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Awaiting Voter Session</h1>
+          <p style="font-size:15px; color:var(--text-muted); max-width:360px; line-height:1.6;">
+            Please wait for the invigilator to verify your identity and activate this kiosk.
+          </p>
+        {% endif %}
       </div>
 
       <!-- Animated dots -->
+      {% if not is_test_kiosk %}
       <div style="display:flex; gap:10px;">
         <div style="width:10px; height:10px; border-radius:50%; background:#6366f1; animation: idle-dots 1.4s ease-in-out infinite;"></div>
         <div style="width:10px; height:10px; border-radius:50%; background:#6366f1; animation: idle-dots 1.4s ease-in-out 0.2s infinite;"></div>
         <div style="width:10px; height:10px; border-radius:50%; background:#6366f1; animation: idle-dots 1.4s ease-in-out 0.4s infinite;"></div>
       </div>
+      {% endif %}
 
       <!-- Security badge -->
       <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
         <span style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#22c55e; padding:5px 14px; border-radius:100px; font-size:12px; font-weight:700; display: inline-flex; align-items: center; gap: 6px;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          Secure &amp; Anonymous
+          {% if is_test_kiosk %}Test Session (Excluded){% else %}Secure Ballot Session{% endif %}
         </span>
       </div>
 
-      <!-- Kiosk countdown badge (shown when session is active) -->
-      <div id="kiosk-countdown" style="display:none; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#ef4444; padding:6px 16px; border-radius:100px; font-size:13px; font-weight:700;"></div>
-
       <!-- Manual fallback (optional, smaller) -->
+      {% if not is_test_kiosk %}
       <div style="margin-top:8px;">
         <button id="btn-manual-override" style="background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:8px 20px; border-radius:8px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s;" title="Manual override — only use if invigilator panel is unavailable">
           Manual Override ↗
         </button>
       </div>
+      {% endif %}
 
       <!-- Kiosk ID -->
       <div id="kiosk-id-display" style="font-size:10px; color:var(--text-muted); font-family:monospace; opacity:0.5;"></div>
@@ -158,6 +185,16 @@
 
   <div id="voting-content" class="hidden">
     <main class="main">
+      <div id="voter-details-banner" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--r-md); margin-bottom: 20px; font-size: 14px; font-weight: 600;">
+        <div style="display: flex; align-items: center; gap: 8px; color: var(--text);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Voting as: <strong id="voter-banner-name">--</strong></span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px; color: var(--text-muted);">
+          <span>Class: <strong id="voter-banner-class" style="color: var(--text);">--</strong></span>
+          <span>Division: <strong id="voter-banner-division" style="color: var(--text);">--</strong></span>
+        </div>
+      </div>
       <div id="voting-container"></div>
     </main>
   </div>
@@ -194,10 +231,17 @@
       </div>
       <h2>Confirm Ballot</h2>
       <p>Please verify selections before final submission.</p>
+
+      <!-- Voter Details Section -->
+      <div id="modal-voter-card" style="padding: 12px 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: var(--r-md); margin: 12px 0 16px; text-align: left; font-size: 13px; font-weight: 600;">
+        <div style="color: var(--text); margin-bottom: 4px;">Voter: <span id="modal-voter-name" style="color: var(--primary-light); font-weight: 700;">--</span></div>
+        <div style="color: var(--text-muted); font-size: 12px;">Class: <span id="modal-voter-class" style="color: var(--text);">--</span> &middot; Division: <span id="modal-voter-division" style="color: var(--text);">--</span></div>
+      </div>
+
       <div class="modal-votes-summary" id="modal-summary"></div>
       <div class="modal-actions">
         <button class="btn-cancel" id="btn-close-modal">Go Back</button>
-        <button class="btn-confirm" id="btn-confirm-submit">Submit Anonymous Ballot</button>
+        <button class="btn-confirm" id="btn-confirm-submit">Submit Ballot</button>
       </div>
     </div>
   </div>
@@ -207,12 +251,28 @@
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
     </div>
     <h2>Vote Submitted!</h2>
-    <p>The ballot was stored anonymously. Hand over the kiosk for the next student.</p>
+    <p>The ballot was successfully submitted. Hand over the kiosk for the next student.</p>
     <div class="success-token">
       Receipt Token
       <strong id="receipt-token">------</strong>
     </div>
   </div>
+
+  {% if show_takeover_prompt %}
+  <div class="modal-overlay active" id="takeover-modal-overlay" style="z-index: 100000; background: rgba(15, 23, 42, 0.9);">
+    <div class="modal" style="max-width: 440px;">
+      <div class="modal-icon" style="display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; background: rgba(245, 158, 11, 0.15);">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </div>
+      <h2>Kiosk Already Active</h2>
+      <p>This kiosk account is currently open on another device. Do you want to sign out the other device and take over?</p>
+      <div class="modal-actions" style="margin-top: 24px;">
+        <a href="/accounts/logout/" class="btn-cancel" style="text-align: center; text-decoration: none; line-height: 40px; height: 40px;">No, Log Out</a>
+        <button class="btn-confirm" id="btn-confirm-takeover" style="background: var(--warn);">Yes, Sign Out Other Device</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <script src="{% static 'voting/js/app.js' %}?v=13"></script>
 </body>

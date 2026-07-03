@@ -274,18 +274,77 @@ def _student_import_template_response(election, file_format):
 @login_required
 @require_GET
 def kiosk_page(request, school_slug=None):
-	# Enforce school constraints for non-superusers
+	profile = getattr(request.user, "profile", None)
 	if not request.user.is_superuser:
-		profile = getattr(request.user, "profile", None)
-		if profile and profile.school_slug:
+		if profile and profile.role in ["invigilator", "teacher"]:
+			return redirect("invigilator-dashboard")
+		if not profile or profile.role != "kiosk":
+			return HttpResponseForbidden("Access denied. Kiosk access is restricted to kiosk devices.")
+		if profile.school_slug:
 			if school_slug != profile.school_slug:
 				return redirect("kiosk-school", school_slug=profile.school_slug)
 
 	election = _active_election_or_none(school_slug=school_slug)
-	return render(request, "voting/index.html", {
+	is_test_kiosk = request.user.is_superuser or request.user.username in ["testuser", "micestest"] or (
+		profile and profile.exclude_votes
+	)
+
+	response_cookie_id = None
+	cookie_device_id = request.COOKIES.get('kiosk_device_id', '')
+	if not cookie_device_id:
+		import uuid
+		cookie_device_id = str(uuid.uuid4())
+		response_cookie_id = cookie_device_id
+
+	show_takeover_prompt = False
+	if profile and not request.user.is_superuser:
+		# Check if another device has been active recently (within 15s)
+		active_threshold = timezone.now() - timezone.timedelta(seconds=15)
+		presence_exists = KioskPresence.objects.filter(
+			election=election,
+			user=request.user,
+			last_seen_at__gte=active_threshold
+		).exists() if election else False
+
+		if profile.current_device_id and profile.current_device_id != cookie_device_id and presence_exists:
+			# Another laptop is actively using this kiosk user
+			show_takeover_prompt = True
+		else:
+			# No active session or it's the same device, register this device
+			profile.current_device_id = cookie_device_id
+			profile.save(update_fields=["current_device_id"])
+
+	response = render(request, "voting/index.html", {
 		"election": election,
 		"school_slug": school_slug or "",
+		"is_test_kiosk": is_test_kiosk,
+		"show_takeover_prompt": show_takeover_prompt,
 	})
+
+	if response_cookie_id:
+		response.set_cookie('kiosk_device_id', response_cookie_id, max_age=31536000, samesite='Lax')
+
+	return response
+
+
+@login_required
+@require_POST
+def api_kiosk_takeover(request):
+	profile = getattr(request.user, "profile", None)
+	if not profile or profile.role != "kiosk":
+		return JsonResponse({"detail": "Access denied."}, status=403)
+
+	cookie_device_id = request.COOKIES.get('kiosk_device_id', '')
+	if not cookie_device_id:
+		return JsonResponse({"detail": "Missing device identifier."}, status=400)
+
+	profile.current_device_id = cookie_device_id
+	profile.save(update_fields=["current_device_id"])
+
+	# Also delete the old presence to reset timer
+	KioskPresence.objects.filter(user=request.user).delete()
+
+	return JsonResponse({"status": "ok"})
 
 
 @login_required
@@ -303,9 +362,22 @@ def api_current_election(request):
 	return JsonResponse(_serialize_election(election), status=200)
 
 
+def _check_kiosk_device(request):
+	profile = getattr(request.user, 'profile', None)
+	if profile and profile.role == 'kiosk':
+		cookie_device_id = request.COOKIES.get('kiosk_device_id', '')
+		if profile.current_device_id and profile.current_device_id != cookie_device_id:
+			return JsonResponse({"status": "logged_out", "detail": "This kiosk has been opened on another device."}, status=401)
+	return None
+
+
 @login_required
 @require_POST
 def api_start_session(request):
+	device_error = _check_kiosk_device(request)
+	if device_error:
+		return device_error
+
 	if throttle_request(request, "start_session", limit=20, window_seconds=60):
 		return JsonResponse({"detail": "Too many start-session attempts."}, status=429)
 
@@ -362,6 +434,7 @@ def api_start_session(request):
 		return JsonResponse({"detail": "Student ID is required to start a voter session."}, status=400)
 
 	student_hash = None
+	student_obj = None
 	if kiosk_session:
 		# Use hash from the KioskSession (already computed by invigilator panel)
 		student_hash = kiosk_session.student_id_hash
@@ -369,17 +442,31 @@ def api_start_session(request):
 			kiosk_session.activated_by.is_superuser or
 			getattr(getattr(kiosk_session.activated_by, "profile", None), "exclude_votes", False)
 		)
+		student_obj = _student_for_hash(election, student_hash)
 	elif manual_override_password:
 		if not election.manual_override_password_hash:
 			return JsonResponse({"detail": "Manual override is not configured for this school."}, status=400)
 		if not election.check_manual_override_password(manual_override_password):
 			return JsonResponse({"detail": "Invalid manual override password."}, status=403)
+		if student_id:
+			import hashlib
+			student_hash = hashlib.sha256(f"{election.id}:{student_id}".encode("utf-8")).hexdigest()
+			student_obj = _student_for_hash(election, student_hash)
 	elif student_id:
 		import hashlib
 		student_hash = hashlib.sha256(f"{election.id}:{student_id}".encode("utf-8")).hexdigest()
 		if not is_test_session:
 			if VoterRegistration.objects.filter(election=election, student_id_hash=student_hash).exists():
 				return JsonResponse({"detail": "This student has already voted in this election."}, status=400)
+		student_obj = _student_for_hash(election, student_hash)
+
+	if not student_obj and is_test_session:
+		student_obj = {
+			"name": student_id.upper() if student_id else "TEST STUDENT",
+			"student_class": "TEST",
+			"division": "SESSION",
+			"student_id": student_id or "TEST",
+		}
 
 	with transaction.atomic():
 
@@ -395,6 +482,8 @@ def api_start_session(request):
 			kiosk_session.ballot = ballot
 			kiosk_session.save(update_fields=["ballot"])
 			request.session["active_kiosk_session_id"] = kiosk_session.id
+		elif student_hash:
+			request.session["active_student_id_hash"] = student_hash
 
 	request.session["active_ballot_id"] = ballot.id
 
@@ -403,6 +492,7 @@ def api_start_session(request):
 			"ballot_id": ballot.id,
 			"session_token": ballot.session_token,
 			"election": _serialize_election(election),
+			"student": student_obj,
 		},
 		status=201,
 	)
@@ -411,6 +501,10 @@ def api_start_session(request):
 @login_required
 @require_POST
 def api_save_selection(request):
+	device_error = _check_kiosk_device(request)
+	if device_error:
+		return device_error
+
 	if throttle_request(request, "save_selection", limit=120, window_seconds=60):
 		return JsonResponse({"detail": "Too many vote updates."}, status=429)
 
@@ -466,6 +560,10 @@ def api_save_selection(request):
 @login_required
 @require_POST
 def api_submit_ballot(request):
+	device_error = _check_kiosk_device(request)
+	if device_error:
+		return device_error
+
 	if throttle_request(request, "submit_ballot", limit=30, window_seconds=60):
 		return JsonResponse({"detail": "Too many submit attempts."}, status=429)
 
@@ -554,8 +652,17 @@ def api_submit_ballot(request):
 				election=linked_session.election,
 				student_id_hash=linked_session.student_id_hash,
 			)
+	else:
+		# Fallback: register voter using student_id_hash stored in session for manual flow
+		student_id_hash = request.session.get("active_student_id_hash")
+		if student_id_hash and not is_test:
+			VoterRegistration.objects.get_or_create(
+				election=ballot.election,
+				student_id_hash=student_id_hash,
+			)
 
 	request.session.pop("active_kiosk_session_id", None)
+	request.session.pop("active_student_id_hash", None)
 	request.session.pop("active_ballot_id", None)
 	return JsonResponse({"receipt_token": ballot.receipt_token}, status=200)
 
@@ -762,6 +869,10 @@ def verify_ballot_page(request):
 @login_required
 @require_POST
 def api_kiosk_ping(request):
+	device_error = _check_kiosk_device(request)
+	if device_error:
+		return device_error
+
 	try:
 		payload = json.loads(request.body.decode("utf-8")) if request.body else {}
 	except Exception:
@@ -783,6 +894,10 @@ def api_kiosk_ping(request):
 @login_required
 def api_kiosk_session_check(request):
 	"""Kiosk polls this every 2 seconds to find out if an invigilator has assigned it a voter session."""
+	device_error = _check_kiosk_device(request)
+	if device_error:
+		return device_error
+
 	kiosk_id = request.GET.get("kiosk_id", "").strip()
 	school_slug = request.GET.get("school_slug", "").strip()
 
@@ -889,7 +1004,11 @@ def api_invigilator_activate_kiosk(request):
 @login_required
 @require_POST
 def api_kiosk_session_complete(request):
-	"""Called by kiosk after ballot is submitted — marks KioskSession as done."""
+	"""Called by kiosk after ballot is submitted or cancelled/expired — marks KioskSession status."""
+	device_error = _check_kiosk_device(request)
+	if device_error:
+		return device_error
+
 	try:
 		payload = json.loads(request.body.decode("utf-8"))
 	except Exception:
@@ -897,6 +1016,7 @@ def api_kiosk_session_complete(request):
 
 	session_id = payload.get("session_id")
 	ballot_id = payload.get("ballot_id")
+	status_param = payload.get("status", KioskSession.STATUS_DONE)
 
 	if not session_id:
 		return JsonResponse({"detail": "session_id required."}, status=400)
@@ -906,23 +1026,27 @@ def api_kiosk_session_complete(request):
 	except KioskSession.DoesNotExist:
 		return JsonResponse({"detail": "Session not found or already completed."}, status=404)
 
-	session.status = KioskSession.STATUS_DONE
-	if ballot_id:
+	if status_param not in [KioskSession.STATUS_DONE, KioskSession.STATUS_EXPIRED, KioskSession.STATUS_CANCELLED]:
+		status_param = KioskSession.STATUS_DONE
+
+	session.status = status_param
+	if ballot_id and status_param == KioskSession.STATUS_DONE:
 		try:
 			session.ballot = Ballot.objects.get(id=ballot_id)
 		except Ballot.DoesNotExist:
 			pass
 	session.save()
 
-	# Register voter (if not test session)
-	is_test = session.activated_by and (session.activated_by.is_superuser or getattr(getattr(session.activated_by, 'profile', None), 'exclude_votes', False))
-	if not is_test:
-		VoterRegistration.objects.get_or_create(
-			election=session.election,
-			student_id_hash=session.student_id_hash,
-		)
+	# Register voter (if not test session and status is done)
+	if status_param == KioskSession.STATUS_DONE:
+		is_test = session.activated_by and (session.activated_by.is_superuser or getattr(getattr(session.activated_by, 'profile', None), 'exclude_votes', False))
+		if not is_test:
+			VoterRegistration.objects.get_or_create(
+				election=session.election,
+				student_id_hash=session.student_id_hash,
+			)
 
-	return JsonResponse({"status": "done"})
+	return JsonResponse({"status": session.status})
 
 
 @login_required
@@ -945,11 +1069,12 @@ def invigilator_dashboard(request):
 	# Active kiosks (pinged in last 15s)
 	active_threshold = timezone.now() - timezone.timedelta(seconds=15)
 	if election:
-		active_kiosks = KioskPresence.objects.filter(
+		active_kiosks_list = KioskPresence.objects.filter(
 			election=election,
 			last_seen_at__gte=active_threshold,
 			user__is_superuser=False,
-		).select_related("user")
+		).select_related("user", "user__profile")
+		active_kiosks = [k for k in active_kiosks_list if not (getattr(k.user, 'profile', None) and k.user.profile.exclude_votes)]
 		voters_count = VoterRegistration.objects.filter(election=election).count()
 		total_students = Student.objects.filter(election=election).count()
 	else:
@@ -984,20 +1109,44 @@ def api_invigilator_kiosks(request):
 	
 	active_threshold = timezone.now() - timezone.timedelta(seconds=15)
 	if election:
-		presences = KioskPresence.objects.filter(
+		presences_list = KioskPresence.objects.filter(
 			election=election,
 			last_seen_at__gte=active_threshold,
 			user__is_superuser=False,
-		).select_related("user").order_by("-last_seen_at")
+		).select_related("user", "user__profile").order_by("-last_seen_at")
+		presences = [p for p in presences_list if not (getattr(p.user, 'profile', None) and p.user.profile.exclude_votes)]
 	else:
 		presences = []
 
 	data = []
 	for p in presences:
+		active_session = KioskSession.objects.filter(
+			election=election,
+			kiosk_id=p.user.username,
+			status__in=[KioskSession.STATUS_PENDING, KioskSession.STATUS_ACTIVE],
+			expires_at__gt=timezone.now()
+		).first()
+
+		session_data = None
+		if active_session:
+			student_details = _student_for_hash(election, active_session.student_id_hash)
+			session_data = {
+				"session_id": active_session.id,
+				"status": active_session.status,
+				"expires_in_seconds": max(0, int((active_session.expires_at - timezone.now()).total_seconds())),
+				"student": student_details or {
+					"name": "Unknown Student",
+					"student_class": "-",
+					"division": "-",
+					"student_id": "-"
+				}
+			}
+
 		data.append({
 			"username": p.user.username,
 			"kiosk_id": p.user.username,
 			"last_seen_seconds_ago": int((timezone.now() - p.last_seen_at).total_seconds()),
+			"active_session": session_data,
 		})
 	return JsonResponse({"active_kiosks": data})
 
@@ -1146,8 +1295,45 @@ def api_invigilator_students_import_template(request):
 @login_required
 @require_GET
 def api_session_status(request, session_id):
+	device_error = _check_kiosk_device(request)
+	if device_error:
+		return device_error
+
 	try:
 		session = KioskSession.objects.get(id=session_id)
 		return JsonResponse({"status": session.status})
 	except KioskSession.DoesNotExist:
 		return JsonResponse({"detail": "Session not found."}, status=404)
+
+
+@login_required
+@require_POST
+def api_invigilator_cancel_session(request):
+	"""
+	Invigilator explicitly cancels an active/pending kiosk session.
+	Called when the invigilator closes the activation modal or the countdown expires.
+	The kiosk's health-check poll will detect the cancellation and return to the waiting screen.
+	"""
+	profile = getattr(request.user, 'profile', None)
+	if not request.user.is_superuser:
+		if not profile or profile.is_locked or profile.role not in ('invigilator', 'teacher'):
+			return JsonResponse({"detail": "Access denied."}, status=403)
+
+	try:
+		payload = json.loads(request.body.decode("utf-8"))
+	except Exception:
+		return JsonResponse({"detail": "Invalid JSON."}, status=400)
+
+	session_id = payload.get("session_id")
+	if not session_id:
+		return JsonResponse({"detail": "session_id required."}, status=400)
+
+	updated = KioskSession.objects.filter(
+		id=session_id,
+		status__in=[KioskSession.STATUS_PENDING, KioskSession.STATUS_ACTIVE],
+	).update(status=KioskSession.STATUS_CANCELLED)
+
+	if updated:
+		return JsonResponse({"status": "cancelled"})
+	# Session already completed or does not exist — treat as success (idempotent)
+	return JsonResponse({"status": "already_resolved"})

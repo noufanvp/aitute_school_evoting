@@ -558,7 +558,7 @@ def portal_invigilator_create(request):
             profile, _ = UserProfile.objects.get_or_create(user=user)
             profile.school_name = school_name
             profile.school_slug = slugify(school_name) or "school"
-            profile.exclude_votes = request.POST.get("exclude_votes") == "on"
+            profile.exclude_votes = False
             profile.plain_password = password
             profile.role = 'invigilator'
             profile.save()
@@ -626,7 +626,7 @@ def portal_invigilator_edit(request, user_id):
             
             profile.school_name = school_name
             profile.school_slug = slugify(school_name) or "school"
-            profile.exclude_votes = request.POST.get("exclude_votes") == "on"
+            profile.exclude_votes = False
             profile.save()
             
         return redirect("portal-invigilators")

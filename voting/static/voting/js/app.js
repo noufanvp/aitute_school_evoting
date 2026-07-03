@@ -49,12 +49,18 @@ function setWaitingMode() {
   document.getElementById('waiting-screen').classList.remove('hidden');
   document.getElementById('voting-content').classList.add('hidden');
   document.getElementById('success-screen').classList.remove('active');
+  const modalOverlay = document.getElementById('modal-overlay');
+  if (modalOverlay) {
+    modalOverlay.classList.remove('active');
+  }
   document.getElementById('progress-fill').style.width = '0%';
   document.getElementById('progress-text').textContent = '0 of 0 positions voted';
   document.getElementById('progress-percent').textContent = '0%';
   updateCurrentVoterDisplay(null);
   clearKioskCountdown();
+  stopSessionHealthCheck(); // stop mid-vote health checks before resuming wait polling
   startSessionPolling();
+  _activatedSessionId = null;
 }
 
 function setActiveVotingMode() {
@@ -66,17 +72,41 @@ function setActiveVotingMode() {
 function updateCurrentVoterDisplay(student) {
   const nameEl = document.getElementById('current-voter-name');
   const classEl = document.getElementById('current-voter-class');
+  
+  const bannerEl = document.getElementById('voter-details-banner');
+  const bannerName = document.getElementById('voter-banner-name');
+  const bannerClass = document.getElementById('voter-banner-class');
+  const bannerDivision = document.getElementById('voter-banner-division');
+
+  const modalVoterName = document.getElementById('modal-voter-name');
+  const modalVoterClass = document.getElementById('modal-voter-class');
+  const modalVoterDivision = document.getElementById('modal-voter-division');
+
   if (!nameEl || !classEl) return;
 
   if (!student) {
-    nameEl.textContent = 'Waiting';
+    const isTestKiosk = document.querySelector('meta[name="is-test-kiosk"]')?.getAttribute('content') === 'true';
+    nameEl.textContent = isTestKiosk ? 'Test Kiosk Mode' : 'Waiting';
     classEl.textContent = '';
+    
+    if (bannerEl) bannerEl.style.display = 'none';
     return;
   }
 
   const classText = [student.student_class, student.division].filter(Boolean).join('-');
   nameEl.textContent = student.name || student.student_id || 'Assigned';
   classEl.textContent = classText ? `(${classText})` : '';
+
+  // Update voter banner in main content
+  if (bannerEl) bannerEl.style.display = 'flex';
+  if (bannerName) bannerName.textContent = student.name || student.student_id || 'Assigned';
+  if (bannerClass) bannerClass.textContent = student.student_class || 'N/A';
+  if (bannerDivision) bannerDivision.textContent = student.division || 'N/A';
+
+  // Update voter card in confirmation modal
+  if (modalVoterName) modalVoterName.textContent = student.name || student.student_id || 'Assigned';
+  if (modalVoterClass) modalVoterClass.textContent = student.student_class || 'N/A';
+  if (modalVoterDivision) modalVoterDivision.textContent = student.division || 'N/A';
 }
 
 function blockBackNavigation() {
@@ -125,9 +155,57 @@ function updateProgress() {
     : `All <strong>${total}</strong> positions voted`;
 }
 
+function handleConcurrentLogout(message) {
+  // Prevent multiple overlays
+  if (document.getElementById('concurrent-logout-overlay')) return;
+
+  // Stop all polling/pinging
+  stopSessionPolling();
+  stopSessionHealthCheck();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'concurrent-logout-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.95);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: system-ui, -apple-system, sans-serif;
+  `;
+
+  overlay.innerHTML = `
+    <div style="background: #1e293b; border: 1px solid #334155; padding: 32px; border-radius: 16px; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+      <div style="width: 56px; height: 56px; background: rgba(239, 68, 68, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </div>
+      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 10px; color: #fff;">Logged Out</h3>
+      <p style="font-size: 14px; color: #94a3b8; margin-bottom: 24px; line-height: 1.5;">${message || 'This kiosk has been opened on another device.'}</p>
+      <a href="/accounts/logout/" class="btn-confirm" style="display: inline-block; padding: 10px 24px; background: #ef4444; color: white; border-radius: 8px; font-weight: 600; text-decoration: none; transition: background 0.2s;">Go to Login</a>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Redirect automatically after 6 seconds
+  setTimeout(() => {
+    window.location.href = '/accounts/logout/';
+  }, 6000);
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, options);
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401 && data.status === 'logged_out') {
+    handleConcurrentLogout(data.detail);
+    throw new Error(data.detail || 'Logged out.');
+  }
   if (!response.ok) {
     throw new Error(data.detail || 'Request failed.');
   }
@@ -204,7 +282,7 @@ async function submitManualOverride() {
     state.ballotId = payload.ballot_id;
     state.sessionToken = payload.session_token;
     state.election = payload.election;
-    state.currentStudent = { name: 'Manual Override Session' };
+    state.currentStudent = payload.student || { name: 'Manual Override Session', student_class: 'Manual', division: 'Override' };
     state.votes = {};
     state.currentSectionIndex = 0;
     updateCurrentVoterDisplay(state.currentStudent);
@@ -216,6 +294,10 @@ async function submitManualOverride() {
     }
 
     preloadElectionImages(payload.election);
+    
+    // Start session monitoring
+    _activatedSessionId = payload.session_id;
+    startSessionHealthCheck(_activatedSessionId);
 
     const rightLogoContainer = document.getElementById('header-right-logo-container');
     if (rightLogoContainer) {
@@ -236,6 +318,7 @@ async function submitManualOverride() {
     setActiveVotingMode();
     renderSection(state.currentSectionIndex);
     closeManualOverrideModal();
+    startKioskCountdown(90);
   } catch (error) {
     console.error('Failed to start session:', error);
     if (errorDiv) {
@@ -315,22 +398,19 @@ function renderSection(index) {
     let symbolHTML = '';
     if (candidate.symbol) {
       const symbolSrc = resolveImageUrl(candidate.symbol);
-      let symbolName = candidate.symbol_name;
-      if (!symbolName) {
-        // Fallback: extract human-readable name from filename
-        const rawName = candidate.symbol.split('/').pop().replace(/\.(png|webp|jpg|jpeg)$/i, '').replace(/^symbol_/i, '');
-        symbolName = rawName
-          .replace(/([A-Z])/g, ' $1')   // camelCase → spaces
-          .replace(/_/g, ' ')            // underscores → spaces
-          .trim()
-          .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
-      }
-      symbolHTML = `
-        <div class="candidate-symbol-wrap" id="symbol-wrap-${candidate.id}">
+      let symbolName = candidate.symbol_name || '';
+      let symbolTextHTML = '';
+      if (symbolName.trim()) {
+        symbolTextHTML = `
           <div class="candidate-symbol-text">
             <span class="symbol-label">Symbol</span>
             <span class="symbol-name">${symbolName}</span>
           </div>
+        `;
+      }
+      symbolHTML = `
+        <div class="candidate-symbol-wrap" id="symbol-wrap-${candidate.id}">
+          ${symbolTextHTML}
           <div class="candidate-symbol-badge">
             <img src="${symbolSrc}" alt="${candidate.name} symbol" loading="eager" onerror="document.getElementById('symbol-wrap-${candidate.id}').style.display='none';">
           </div>
@@ -489,7 +569,9 @@ async function submitBallot() {
       body: JSON.stringify({ ballot_id: state.ballotId }),
     });
 
+    stopSessionHealthCheck(); // vote complete — no longer need to monitor the session
     closeModal();
+    clearKioskCountdown();
     document.getElementById('voting-content').classList.add('hidden');
     document.getElementById('success-screen').classList.add('active');
     document.getElementById('receipt-token').textContent = payload.receipt_token;
@@ -500,6 +582,7 @@ async function submitBallot() {
     state.ballotId = null;
     state.sessionToken = null;
     state.votes = {};
+    _activatedSessionId = null;
 
     setTimeout(() => {
       setWaitingMode();
@@ -667,11 +750,18 @@ function getKioskId() {
 function startKioskPing() {
   const ping = async () => {
     try {
-      await fetch('/api/kiosk/ping/', {
+      const res = await fetch('/api/kiosk/ping/', {
         method: 'POST',
         headers: jsonHeaders(),
         body: JSON.stringify({ school_slug: getSchoolSlug(), kiosk_id: getKioskId() }),
       });
+      if (res.status === 401) {
+        const data = await res.json().catch(() => ({}));
+        if (data.status === 'logged_out') {
+          handleConcurrentLogout(data.detail);
+          return;
+        }
+      }
     } catch (e) {
       console.warn('Presence ping failed:', e);
     }
@@ -680,9 +770,47 @@ function startKioskPing() {
   setInterval(ping, 10000);
 }
 
-// ── Invigilator session polling (every 2s) ───────────────────────────────────
+// ── Invigilator session polling (every 2s, only while in waiting screen) ─────
 let _sessionPollInterval = null;
 let _activatedSessionId = null;
+
+// ── Kiosk session health check (every 2s, only while in voting mode) ─────────
+// Polls the session status; if the invigilator cancels/times out, the kiosk
+// immediately returns to the waiting screen without requiring a manual refresh.
+let _sessionHealthInterval = null;
+
+function startSessionHealthCheck(sessionId) {
+  stopSessionHealthCheck();
+  _sessionHealthInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/session/${sessionId}/status/`);
+      if (res.status === 401) {
+        const data = await res.json().catch(() => ({}));
+        if (data.status === 'logged_out') {
+          handleConcurrentLogout(data.detail);
+          return;
+        }
+      }
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.status === 'cancelled' || data.status === 'expired') {
+        stopSessionHealthCheck();
+        // Clear voting state so no orphaned ballot data remains
+        state.ballotId = null;
+        state.sessionToken = null;
+        state.votes = {};
+        setWaitingMode();
+      }
+    } catch (e) {}
+  }, 2000);
+}
+
+function stopSessionHealthCheck() {
+  if (_sessionHealthInterval) {
+    clearInterval(_sessionHealthInterval);
+    _sessionHealthInterval = null;
+  }
+}
 
 function startSessionPolling() {
   if (_sessionPollInterval) return;
@@ -700,6 +828,13 @@ async function checkForInvigilatorSession() {
 
   try {
     const res = await fetch(`/api/kiosk/session-check/?kiosk_id=${encodeURIComponent(getKioskId())}&school_slug=${encodeURIComponent(getSchoolSlug())}`);
+    if (res.status === 401) {
+      const data = await res.json().catch(() => ({}));
+      if (data.status === 'logged_out') {
+        handleConcurrentLogout(data.detail);
+        return;
+      }
+    }
     const data = await res.json();
 
     if (data.status === 'session_ready') {
@@ -743,6 +878,12 @@ async function launchInvigilatorSession(sessionData) {
     renderSection(0);
     setActiveVotingMode();
 
+    // Monitor this session while the student votes — if the invigilator
+    // cancels or the session expires, the kiosk returns to waiting screen.
+    if (sessionData.session_id) {
+      startSessionHealthCheck(sessionData.session_id);
+    }
+
     // Show countdown if provided
     if (sessionData.countdown) {
       startKioskCountdown(sessionData.countdown);
@@ -757,17 +898,40 @@ async function launchInvigilatorSession(sessionData) {
 // ── Kiosk countdown timer ──────────────────────────────────────────────────
 let _kioskCountdownInterval = null;
 
+async function cancelSessionOnServer(reason) {
+  if (!_activatedSessionId) return;
+  try {
+    await fetch('/api/kiosk/session-complete/', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        session_id: _activatedSessionId,
+        status: reason
+      })
+    });
+  } catch (e) {
+    console.warn('Failed to cancel session on server:', e);
+  }
+}
+
 function startKioskCountdown(seconds) {
   const el = document.getElementById('kiosk-countdown');
+  const txtEl = document.getElementById('kiosk-countdown-text');
   if (!el) return;
-  el.style.display = 'block';
+  el.style.display = 'inline-flex';
 
   let remaining = seconds;
-  function tick() {
-    el.textContent = `⏱ ${remaining}s remaining`;
+  async function tick() {
+    if (txtEl) {
+      txtEl.textContent = `${remaining}s remaining`;
+    } else {
+      el.textContent = `⏱ ${remaining}s remaining`;
+    }
     if (remaining <= 0) {
       clearInterval(_kioskCountdownInterval);
       el.style.display = 'none';
+      await cancelSessionOnServer('expired');
+      setWaitingMode();
     }
     remaining--;
   }
@@ -790,6 +954,63 @@ function updateKioskIdDisplay() {
   }
 }
 
+async function startTestSession() {
+  const btn = document.getElementById('btn-start-test-session');
+  if (btn) btn.disabled = true;
+
+  try {
+    const payload = await api('/api/kiosk/start-session/', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ 
+        school_slug: getSchoolSlug(),
+        student_id: 'test_student_' + Math.floor(Math.random() * 1000000)
+      }),
+    });
+
+    state.ballotId = payload.ballot_id;
+    state.sessionToken = payload.session_token;
+    state.election = payload.election;
+    state.currentStudent = payload.student || { name: 'Test Vote Session', student_class: 'Test', division: 'Kiosk' };
+    state.votes = {};
+    state.currentSectionIndex = 0;
+    updateCurrentVoterDisplay(state.currentStudent);
+
+    if (!state.election || !state.election.positions || state.election.positions.length === 0) {
+      alert("No active election positions configured. Please configure them in the Django Admin panel first.");
+      setWaitingMode();
+      return;
+    }
+
+    preloadElectionImages(payload.election);
+    
+    // Stop waiting-room session polling
+    stopSessionPolling();
+
+    const rightLogoContainer = document.getElementById('header-right-logo-container');
+    if (rightLogoContainer) {
+      if (payload.election.logo_url) {
+        rightLogoContainer.innerHTML = `
+          <div class="school-logo-wrap">
+            <img src="${payload.election.logo_url}" alt="${payload.election.school_name} Logo" class="school-logo" onerror="this.closest('.school-logo-wrap').style.display='none';" />
+          </div>
+        `;
+      } else {
+        rightLogoContainer.innerHTML = '';
+      }
+    }
+
+    renderSection(0);
+    setActiveVotingMode();
+
+  } catch (err) {
+    alert(err.message || 'Failed to start test session.');
+    setWaitingMode();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setWaitingMode();
   blockBackNavigation();
@@ -798,9 +1019,22 @@ document.addEventListener('DOMContentLoaded', () => {
   startSessionPolling();
   updateKioskIdDisplay();
 
-  // Manual start button still available as fallback
+  // Start button action conditional on test kiosk mode
   const btnStart = document.getElementById('btn-start-session');
-  if (btnStart) btnStart.addEventListener('click', startSession);
+  if (btnStart) {
+    btnStart.addEventListener('click', () => {
+      const isTestKiosk = document.querySelector('meta[name="is-test-kiosk"]')?.getAttribute('content') === 'true';
+      if (isTestKiosk) {
+        startTestSession();
+      } else {
+        startSession();
+      }
+    });
+  }
+
+  const btnTest = document.getElementById('btn-start-test-session');
+  if (btnTest) btnTest.addEventListener('click', startTestSession);
+
   const btnManual = document.getElementById('btn-manual-override');
   if (btnManual) btnManual.addEventListener('click', startSession);
 
@@ -818,6 +1052,36 @@ document.addEventListener('DOMContentLoaded', () => {
   if (manualOverrideInput) {
     manualOverrideInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); submitManualOverride(); }
+    });
+  }
+  // Handle takeover button action
+  const takeoverBtn = document.getElementById('btn-confirm-takeover');
+  if (takeoverBtn) {
+    takeoverBtn.addEventListener('click', async () => {
+      takeoverBtn.disabled = true;
+      takeoverBtn.textContent = 'Taking over...';
+      try {
+        const res = await fetch('/api/kiosk/takeover/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          }
+        });
+        if (res.ok) {
+          // Hide takeover modal and reload to resume normally
+          document.getElementById('takeover-modal-overlay').classList.remove('active');
+          window.location.reload();
+        } else {
+          takeoverBtn.disabled = false;
+          takeoverBtn.textContent = 'Yes, Sign Out Other Device';
+          alert('Failed to take over kiosk. Please try again.');
+        }
+      } catch (e) {
+        takeoverBtn.disabled = false;
+        takeoverBtn.textContent = 'Yes, Sign Out Other Device';
+        alert('Network error. Please try again.');
+      }
     });
   }
 });

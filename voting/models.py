@@ -249,6 +249,11 @@ class UserProfile(models.Model):
 		default="invigilator",
 		help_text="The role of this user (invigilator, teacher, or kiosk).",
 	)
+	current_device_id = models.CharField(
+		max_length=64,
+		blank=True,
+		help_text="Tracks the unique active device ID for this kiosk/user to prevent concurrent sessions.",
+	)
 
 	class Meta:
 		verbose_name = "User Profile"

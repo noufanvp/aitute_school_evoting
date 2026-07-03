@@ -202,17 +202,9 @@ class InvigilatorSecurityTests(TestCase):
 		# Log in as inv_a
 		self.client.login(username="inv_a", password="InvPassword123")
 		
-		# Try to access school-a kiosk
+		# Try to access school-a kiosk -> should redirect to invigilator dashboard
 		response = self.client.get(reverse("kiosk-school", kwargs={"school_slug": "school-a"}))
-		self.assertEqual(response.status_code, 200)
-
-		# Try to access school-b kiosk -> should redirect to school-a
-		response = self.client.get(reverse("kiosk-school", kwargs={"school_slug": "school-b"}))
-		self.assertRedirects(response, reverse("kiosk-school", kwargs={"school_slug": "school-a"}))
-
-		# Try to access root kiosk -> should redirect to school-a
-		response = self.client.get(reverse("kiosk"))
-		self.assertRedirects(response, reverse("kiosk-school", kwargs={"school_slug": "school-a"}))
+		self.assertRedirects(response, reverse("invigilator-dashboard"))
 
 	def test_invigilator_api_start_session_enforcement(self):
 		# Log in as inv_a
@@ -476,6 +468,18 @@ class VoterRegistrationTests(TestCase):
 			content_type="application/json",
 		)
 		self.assertEqual(response.status_code, 201)
+		payload = response.json()
+		ballot_id = payload["ballot_id"]
+		session_token = payload["session_token"]
+
+		# Submit ballot to trigger voter registration
+		submit_resp = self.client.post(
+			reverse("api-submit-ballot"),
+			data=json.dumps({"ballot_id": ballot_id}),
+			content_type="application/json",
+			HTTP_X_BALLOT_TOKEN=session_token,
+		)
+		self.assertEqual(submit_resp.status_code, 200)
 		
 		# Assert VoterRegistration record exists
 		from .models import VoterRegistration
@@ -706,6 +710,17 @@ class InvigilatorKioskActivationTests(TestCase):
 		data = response.json()
 		self.assertIn("ballot_id", data)
 		self.assertIn("session_token", data)
+		ballot_id = data["ballot_id"]
+		session_token = data["session_token"]
+
+		# Submit ballot to complete session and trigger voter registration
+		submit_resp = self.client.post(
+			reverse("api-submit-ballot"),
+			data=json.dumps({"ballot_id": ballot_id}),
+			content_type="application/json",
+			HTTP_X_BALLOT_TOKEN=session_token,
+		)
+		self.assertEqual(submit_resp.status_code, 200)
 		
 		# 4. Try activation for same student again to check double voting prevention
 		response = self.client.post(
@@ -969,3 +984,80 @@ class UserRoleSeparationTests(TestCase):
 		resolved = views._student_for_hash(self.election, session.student_id_hash)
 		self.assertIsNotNone(resolved)
 		self.assertEqual(resolved["name"], "No ID Student")
+
+
+class KioskConcurrencyAndDeviceLockTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		User = get_user_model()
+		
+		# Create kiosk user
+		self.kiosk_user = User.objects.create_user(
+			username="kiosk1", password="password123"
+		)
+		self.kiosk_profile = self.kiosk_user.profile
+		self.kiosk_profile.role = "kiosk"
+		self.kiosk_profile.school_slug = "test-school"
+		self.kiosk_profile.save()
+		
+		self.election = Election.objects.create(
+			title="School President",
+			school_name="Test School",
+			school_slug="test-school",
+			status=Election.STATUS_OPEN,
+		)
+
+	def test_device_id_cookie_and_lockout(self):
+		# First login/visit should set a device ID cookie and save it to the profile
+		self.client.force_login(self.kiosk_user)
+		response = self.client.get(reverse("kiosk-school", kwargs={"school_slug": "test-school"}))
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("kiosk_device_id", self.client.cookies)
+		first_device_id = self.client.cookies["kiosk_device_id"].value
+		
+		# Profile current_device_id should be updated
+		self.kiosk_profile.refresh_from_db()
+		self.assertEqual(self.kiosk_profile.current_device_id, first_device_id)
+		
+		# Subsequent visits with the same cookie should be fine
+		response = self.client.get(reverse("kiosk-school", kwargs={"school_slug": "test-school"}))
+		self.assertEqual(response.status_code, 200)
+
+		# Make a presence ping to simulate active kiosk
+		KioskPresence.objects.update_or_create(
+			election=self.election,
+			user=self.kiosk_user,
+			defaults={"last_seen_at": timezone.now()}
+		)
+
+		# Second device visits without a cookie (simulating a new laptop/browser)
+		client2 = Client()
+		client2.force_login(self.kiosk_user)
+		response2 = client2.get(reverse("kiosk-school", kwargs={"school_slug": "test-school"}))
+		self.assertEqual(response2.status_code, 200)
+		# Should generate a new cookie and show takeover prompt since the first device is active
+		self.assertIn("kiosk_device_id", client2.cookies)
+		second_device_id = client2.cookies["kiosk_device_id"].value
+		self.assertNotEqual(first_device_id, second_device_id)
+		
+		# In Django template context, show_takeover_prompt is passed as True
+		self.assertTrue(response2.context["show_takeover_prompt"])
+
+		# Simulating clicking "Sign Out Other Device" via API
+		response_takeover = client2.post(reverse("api-kiosk-takeover"))
+		self.assertEqual(response_takeover.status_code, 200)
+		
+		# profile current_device_id should now be the second device ID
+		self.kiosk_profile.refresh_from_db()
+		self.assertEqual(self.kiosk_profile.current_device_id, second_device_id)
+
+		# Now the first client tries to ping or check session. Since it has first_device_id cookie, it should return 401
+		self.client.cookies["kiosk_device_id"] = first_device_id
+		response_ping = self.client.post(
+			reverse("api-kiosk-ping"),
+			data=json.dumps({"school_slug": "test-school"}),
+			content_type="application/json"
+		)
+		self.assertEqual(response_ping.status_code, 401)
+		self.assertEqual(response_ping.json()["status"], "logged_out")
+

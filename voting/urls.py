@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/kiosk/ping/", views.api_kiosk_ping, name="api-kiosk-ping"),
     path("api/kiosk/session-check/", views.api_kiosk_session_check, name="api-kiosk-session-check"),
     path("api/kiosk/session-complete/", views.api_kiosk_session_complete, name="api-kiosk-session-complete"),
+    path("api/kiosk/takeover/", views.api_kiosk_takeover, name="api-kiosk-takeover"),
     path("api/invigilator/activate-kiosk/", views.api_invigilator_activate_kiosk, name="api-invigilator-activate-kiosk"),
     path("api/elections/<int:election_id>/publish/", views.api_publish_results, name="api-publish-results"),
     path("api/admin/users/", views.api_list_invigilators, name="api-list-invigilators"),
@@ -29,4 +30,5 @@ urlpatterns = [
     path("api/invigilator/students/import/", views.api_invigilator_students_import, name="api-invigilator-students-import"),
     path("api/invigilator/students/import/template/", views.api_invigilator_students_import_template, name="api-invigilator-students-import-template"),
     path("api/session/<int:session_id>/status/", views.api_session_status, name="api-session-status"),
+    path("api/invigilator/cancel-session/", views.api_invigilator_cancel_session, name="api-invigilator-cancel-session"),
 ]

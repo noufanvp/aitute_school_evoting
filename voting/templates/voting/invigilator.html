@@ -278,6 +278,18 @@
       letter-spacing: .06em;
     }
 
+    th.sortable:hover {
+      background-color: var(--surface-2);
+      color: var(--primary) !important;
+    }
+
+    .sort-indicator {
+      display: inline-block;
+      margin-left: 2px;
+      font-size: 9px;
+      color: var(--primary);
+    }
+
     tbody tr:hover {
       background: #f8fbff;
     }
@@ -403,7 +415,6 @@
     }
 
     body.role-teacher #activeKiosksSection,
-    body.role-teacher #openVoterWindowBtn,
     body.role-teacher .action-header,
     body.role-teacher .action-cell {
       display: none !important;
@@ -452,9 +463,6 @@
       {% if request.user.is_superuser %}
       <a href="/portal/" class="btn btn-secondary">Admin Portal</a>
       {% endif %}
-      {% if election %}
-      <button class="btn btn-secondary" id="openVoterWindowBtn">Open Voter Window</button>
-      {% endif %}
       <form method="post" action="{% url 'logout' %}" style="margin:0">
         {% csrf_token %}
         <button class="btn btn-secondary" type="submit">Logout</button>
@@ -490,9 +498,19 @@
       <div class="kiosk-list" id="kioskList"></div>
     </section>
 
+    <section class="card" id="activeSessionsSection" style="display: none; margin-top: 16px;">
+      <div class="card-hd">
+        <div class="card-title">Active Voting Sessions</div>
+      </div>
+      <div class="sessions-list" id="sessionsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 12px;"></div>
+    </section>
+
     <section class="card">
       <div class="card-hd" style="display: flex; align-items: center; justify-content: space-between;">
-        <div class="card-title">Student Roster</div>
+        <div class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <span>Student Roster</span>
+          <span id="filteredStudentCount" style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;">0 students</span>
+        </div>
         {% if election %}
         <div style="display:flex; align-items:center; gap:8px;">
           <button class="btn btn-ghost" id="openImportStudentsModalBtn"
@@ -535,9 +553,10 @@
           <thead>
             <tr>
               <th>#</th>
-              <th>Name</th>
-              <th>Class/Division</th>
-              <th>Student ID</th>
+              <th class="sortable" data-sort="name" style="cursor: pointer; user-select: none;">Name <span id="sort-indicator-name" class="sort-indicator">▲</span></th>
+              <th class="sortable" data-sort="class" style="cursor: pointer; user-select: none;">Class <span id="sort-indicator-class" class="sort-indicator"></span></th>
+              <th>Division</th>
+              <th class="sortable" data-sort="student_id" style="cursor: pointer; user-select: none;">Student ID <span id="sort-indicator-student_id" class="sort-indicator"></span></th>
               <th>Status</th>
               <th class="action-header">Action</th>
             </tr>
@@ -553,10 +572,7 @@
       <h3>Activate Voter Session</h3>
       <p id="modalStudentSummary">Choose a kiosk for this student.</p>
 
-      <div class="countdown" id="activationCountdown">
-        <div style="font-size:12px; color: var(--muted); margin-bottom:6px;">Session Active. Time Remaining</div>
-        <div class="countdown-num" id="countdownValue">90</div>
-      </div>
+
 
       <div class="kiosk-picker" id="kioskPicker"></div>
 
@@ -652,10 +668,11 @@
     const state = {
       students: [],
       kiosks: [],
+      activeSessions: [],
       selectedStudent: null,
       selectedKiosk: null,
-      countdownTimer: null,
-      sessionPollInterval: null,
+      sortBy: 'name',
+      sortDir: 'asc',
     };
 
     function showToast(text, isError = false) {
@@ -691,6 +708,34 @@
         if (!res.ok) return;
         const data = await res.json();
         state.kiosks = data.active_kiosks || [];
+        
+        // Compile current active sessions
+        const currentSessions = [];
+        state.kiosks.forEach(k => {
+          if (k.active_session) {
+            currentSessions.push({
+              sessionId: k.active_session.session_id,
+              student: k.active_session.student,
+              kioskName: k.username,
+              timeLeft: k.active_session.expires_in_seconds,
+              status: k.active_session.status
+            });
+          }
+        });
+
+        // Detect finished sessions
+        if (state.activeSessions) {
+          state.activeSessions.forEach(oldS => {
+            const exists = currentSessions.some(newS => newS.sessionId === oldS.sessionId);
+            if (!exists) {
+              showToast(`Session for ${oldS.student.name} on ${oldS.kioskName} has ended.`);
+              fetchStudents();
+            }
+          });
+        }
+        
+        state.activeSessions = currentSessions;
+        renderActiveSessions();
         renderKiosks();
         refreshStatusPill();
       } catch (_) { }
@@ -706,9 +751,64 @@
         return;
       }
 
-      list.innerHTML = state.kiosks.map((k) => `
-        <span class="kiosk-chip">${k.username} · active ${k.last_seen_seconds_ago}s ago</span>
+      list.innerHTML = state.kiosks.map((k) => {
+        const busyText = k.active_session ? ` · busy: ${k.active_session.student.name}` : '';
+        return `<span class="kiosk-chip">${k.username} · active ${k.last_seen_seconds_ago}s ago${busyText}</span>`;
+      }).join('');
+    }
+
+    function cancelSession(sessionId) {
+      if (!sessionId) return;
+      fetch('/api/invigilator/cancel-session/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ session_id: sessionId }),
+      }).then(() => {
+        fetchKiosks();
+        fetchStudents();
+      }).catch(() => {});
+    }
+
+    function renderActiveSessions() {
+      const sect = document.getElementById('activeSessionsSection');
+      const list = document.getElementById('sessionsList');
+      
+      if (!state.activeSessions || !state.activeSessions.length) {
+        sect.style.display = 'none';
+        list.innerHTML = '';
+        return;
+      }
+      
+      sect.style.display = 'block';
+      list.innerHTML = state.activeSessions.map((s) => `
+        <div class="session-card" style="border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface-1); display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-weight: 700; font-size: 14px; color: var(--text);">${s.student.name}</div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                Class ${s.student.student_class || '-'} · Div ${s.student.division || '-'} · ID: ${s.student.student_id || '-'}
+              </div>
+            </div>
+            <span class="badge badge-pending" style="font-size: 10px; padding: 2px 6px;">Kiosk: ${s.kioskName}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+            <div style="font-size: 13px; font-weight: 600; color: var(--warn); display: flex; align-items: center; gap: 4px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warn);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span class="session-timer" data-session-id="${s.sessionId}">${s.timeLeft}s</span>
+            </div>
+            <button class="btn btn-ghost cancel-session-btn" data-session-id="${s.sessionId}" style="color: var(--danger); font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: transparent;" type="button">
+              Cancel Session
+            </button>
+          </div>
+        </div>
       `).join('');
+      
+      list.querySelectorAll('.cancel-session-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sid = Number(btn.getAttribute('data-session-id'));
+          cancelSession(sid);
+        });
+      });
     }
 
     async function fetchStudents() {
@@ -760,8 +860,45 @@
       });
     }
 
+    function sortStudents(list) {
+      const sortBy = state.sortBy || 'name';
+      const sortDir = state.sortDir || 'asc';
+
+      return list.sort((a, b) => {
+        let valA, valB;
+        if (sortBy === 'name') {
+          valA = (a.name || '').trim().toLowerCase();
+          valB = (b.name || '').trim().toLowerCase();
+        } else if (sortBy === 'class') {
+          valA = (a.student_class || '').trim();
+          valB = (b.student_class || '').trim();
+
+          const numA = parseInt(valA, 10);
+          const numB = parseInt(valB, 10);
+          if (!isNaN(numA) && !isNaN(numB)) {
+            valA = numA;
+            valB = numB;
+          }
+        } else if (sortBy === 'student_id') {
+          valA = (a.student_id || '').trim().toLowerCase();
+          valB = (b.student_id || '').trim().toLowerCase();
+
+          const numA = parseInt(valA, 10);
+          const numB = parseInt(valB, 10);
+          if (!isNaN(numA) && !isNaN(numB)) {
+            valA = numA;
+            valB = numB;
+          }
+        }
+
+        if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
     function renderStudents() {
-      const list = filteredStudents();
+      const list = sortStudents(filteredStudents());
       const body = document.getElementById('studentsBody');
 
       const total = state.students.length;
@@ -774,8 +911,13 @@
       document.getElementById('statPending').textContent = pending;
       document.getElementById('statTurnout').textContent = `${turnout}%`;
 
+      const countBadge = document.getElementById('filteredStudentCount');
+      if (countBadge) {
+        countBadge.textContent = `${list.length} student${list.length === 1 ? '' : 's'}`;
+      }
+
       if (!list.length) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No students match current filters.</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted)">No students match current filters.</td></tr>';
         return;
       }
 
@@ -786,13 +928,13 @@
         const actionBtn = s.has_voted
           ? '<button class="btn btn-ghost" type="button" disabled>Already Voted</button>'
           : `<button class="btn btn-primary" type="button" data-student-id="${s.id}">Vote Now</button>`;
-        const classDiv = `${s.student_class || '-'}${s.division ? `-${s.division}` : ''}`;
 
         return `
           <tr>
             <td>${i + 1}</td>
             <td style="font-weight:600">${s.name || '-'}</td>
-            <td>${classDiv}</td>
+            <td>${s.student_class || '-'}</td>
+            <td>${s.division || '-'}</td>
             <td style="font-family:monospace">${s.student_id || '-'}</td>
             <td>${statusBadge}</td>
             <td class="action-cell">${actionBtn}</td>
@@ -829,7 +971,6 @@
       const picker = document.getElementById('kioskPicker');
       picker.innerHTML = '<span style="font-size:12px;color:var(--muted)">Checking available kiosks...</span>';
 
-      document.getElementById('activationCountdown').style.display = 'none';
       document.getElementById('activateModal').classList.add('open');
       document.getElementById('confirmActivateBtn').disabled = true;
       document.getElementById('confirmActivateBtn').textContent = 'Activate';
@@ -840,13 +981,21 @@
       if (!state.kiosks.length) {
         picker.innerHTML = '<span style="font-size:12px;color:var(--muted)">No active kiosks found.</span>';
       } else {
-        picker.innerHTML = state.kiosks.map((k) => `
-          <button type="button" class="pick" data-kiosk-id="${k.kiosk_id}" data-kiosk-name="${k.username}">
-            ${k.username}
-          </button>
-        `).join('');
+        picker.innerHTML = state.kiosks.map((k) => {
+          const isBusy = !!k.active_session;
+          const label = isBusy 
+            ? `${k.username} (Busy - ${k.active_session.student.name})`
+            : k.username;
+          const disabledAttr = isBusy ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+          return `
+            <button type="button" class="pick" data-kiosk-id="${k.kiosk_id}" data-kiosk-name="${k.username}" ${disabledAttr}>
+              ${label}
+            </button>
+          `;
+        }).join('');
 
         picker.querySelectorAll('.pick').forEach((el) => {
+          if (el.disabled) return;
           el.addEventListener('click', () => {
             state.selectedKiosk = {
               kiosk_id: el.getAttribute('data-kiosk-id'),
@@ -861,69 +1010,9 @@
     }
 
     function closeActivateModal() {
-      clearCountdown();
-      clearSessionPolling();
       document.getElementById('activateModal').classList.remove('open');
       state.selectedStudent = null;
       state.selectedKiosk = null;
-    }
-
-    function startCountdown(seconds) {
-      const box = document.getElementById('activationCountdown');
-      const val = document.getElementById('countdownValue');
-      box.style.display = 'block';
-      let left = seconds;
-      val.textContent = String(left);
-      clearCountdown();
-
-      state.countdownTimer = setInterval(() => {
-        left -= 1;
-        val.textContent = String(Math.max(left, 0));
-        if (left <= 0) {
-          clearCountdown();
-          clearSessionPolling();
-          closeActivateModal();
-          showToast('Session timed out.');
-        }
-      }, 1000);
-    }
-
-    function clearCountdown() {
-      if (state.countdownTimer) {
-        clearInterval(state.countdownTimer);
-        state.countdownTimer = null;
-      }
-    }
-
-    function startSessionPolling(sessionId) {
-      clearSessionPolling();
-      state.sessionPollInterval = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/session/${sessionId}/status/`);
-          if (!res.ok) return;
-          const data = await res.json();
-          if (data.status === 'done') {
-            clearCountdown();
-            clearSessionPolling();
-            closeActivateModal();
-            showToast('Student voting completed successfully!');
-            fetchStudents();
-          } else if (data.status === 'expired' || data.status === 'cancelled') {
-            clearCountdown();
-            clearSessionPolling();
-            closeActivateModal();
-            showToast('Session was expired or cancelled.', true);
-            fetchStudents();
-          }
-        } catch (_) {}
-      }, 1500);
-    }
-
-    function clearSessionPolling() {
-      if (state.sessionPollInterval) {
-        clearInterval(state.sessionPollInterval);
-        state.sessionPollInterval = null;
-      }
     }
 
     async function activateStudent() {
@@ -958,11 +1047,9 @@
         }
 
         showToast(`Activated ${kiosk.name} for ${student.name}.`);
-        startCountdown(90);
-        if (data.session_id) {
-          startSessionPolling(data.session_id);
-        }
-        setTimeout(fetchStudents, 1200);
+        closeActivateModal();
+        fetchKiosks();
+        fetchStudents();
       } catch (err) {
         showToast(err.message || 'Activation failed.', true);
         btn.disabled = false;
@@ -1135,20 +1222,58 @@
         submitBtn.textContent = 'Import Students';
       }
     });
-
-    {% if election %}
-    const openBtn = document.getElementById('openVoterWindowBtn');
-    if (openBtn) {
-      openBtn.addEventListener('click', () => {
-        window.open(VOTER_URL, '_blank', 'noopener,noreferrer');
+    function bindSortHeaders() {
+      document.querySelectorAll('th.sortable').forEach((th) => {
+        th.addEventListener('click', () => {
+          const field = th.getAttribute('data-sort');
+          if (state.sortBy === field) {
+            state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+          } else {
+            state.sortBy = field;
+            state.sortDir = 'asc';
+          }
+          updateSortIndicators();
+          renderStudents();
+        });
       });
     }
-    {% endif %}
+
+    function updateSortIndicators() {
+      ['name', 'class', 'student_id'].forEach((field) => {
+        const ind = document.getElementById(`sort-indicator-${field}`);
+        if (!ind) return;
+        if (state.sortBy === field) {
+          ind.textContent = state.sortDir === 'asc' ? ' ▲' : ' ▼';
+          ind.style.opacity = '1';
+        } else {
+          ind.textContent = '';
+          ind.style.opacity = '0';
+        }
+      });
+    }
 
     startClock();
     bindFilters();
+    bindSortHeaders();
+    updateSortIndicators();
     fetchStudents();
+    fetchKiosks();
     setInterval(fetchStudents, 5000);
+    setInterval(fetchKiosks, 5000);
+
+    // Decrement active session timers locally every second
+    setInterval(() => {
+      if (!state.activeSessions || !state.activeSessions.length) return;
+      state.activeSessions.forEach(s => {
+        if (s.timeLeft > 0) {
+          s.timeLeft -= 1;
+          const el = document.querySelector(`.session-timer[data-session-id="${s.sessionId}"]`);
+          if (el) {
+            el.textContent = `${s.timeLeft}s`;
+          }
+        }
+      });
+    }, 1000);
   </script>
 </body>
 
