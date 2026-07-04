@@ -1,9 +1,10 @@
 from django.urls import path
 
-from . import views
+from . import views, views_pdf
 
 
 urlpatterns = [
+    path("invigilator/students/pdf/", views_pdf.download_student_status_pdf, name="download-students-pdf"),
     # School-specific kiosk (primary URL for multi-school support)
     path("vote/<slug:school_slug>/", views.kiosk_page, name="kiosk-school"),
     # Legacy fallback kiosk (serves any active election)

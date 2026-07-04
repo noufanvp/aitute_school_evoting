@@ -26,3 +26,4 @@ django-cloudinary-storage>=0.3.0  # Django storage backend for Cloudinary
 
 # ── Excel Import ─────────────────────────────────────────────────────────────
 openpyxl>=3.1.0                   # Student bulk import/export template support
+reportlab>=4.1.0                  # PDF generation library for student status reports

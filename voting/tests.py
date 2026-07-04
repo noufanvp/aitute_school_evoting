@@ -12,6 +12,8 @@ from .models import Election
 from .models import Position
 from .models import Vote
 from .models import KioskPresence
+from .models import Student
+from .models import VoterRegistration
 
 
 class VotingFlowTests(TestCase):
@@ -1126,5 +1128,89 @@ class KioskTimeoutCustomizationTests(TestCase):
 		from .views import _serialize_election
 		serialized = _serialize_election(self.election)
 		self.assertEqual(serialized["kiosk_timeout"], 120)
+
+
+class RateLimitAndPDFTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.election = Election.objects.create(
+			title="Test Election",
+			school_name="Test School",
+			school_slug="test-school",
+			status=Election.STATUS_OPEN,
+			starts_at=timezone.now(),
+		)
+		self.student_1 = Student.objects.create(
+			election=self.election,
+			name="Voted Alice",
+			student_class="10",
+			division="A",
+			student_id="alice1"
+		)
+		self.student_2 = Student.objects.create(
+			election=self.election,
+			name="Not Voted Bob",
+			student_class="10",
+			division="A",
+			student_id="bob2"
+		)
+
+		import hashlib
+		val = self.student_1.student_id.lower()
+		h = hashlib.sha256(f"{self.election.id}:{val}".encode("utf-8")).hexdigest()
+		VoterRegistration.objects.create(
+			election=self.election,
+			student_id_hash=h
+		)
+
+		self.invigilator = get_user_model().objects.create_user(username="teacher1", password="StrongPass123!")
+		self.invigilator.profile.school_name = "Test School"
+		self.invigilator.profile.school_slug = "test-school"
+		self.invigilator.profile.role = "teacher"
+		self.invigilator.profile.save()
+
+		self.other_user = get_user_model().objects.create_user(username="other", password="StrongPass123!")
+
+	def test_rate_limiter_isolates_by_user(self):
+		from .rate_limit import throttle_request
+		from django.test import RequestFactory
+		from django.core.cache import cache
+
+		cache.clear()
+		rf = RequestFactory()
+
+		req_anon_1 = rf.post("/api/kiosk/save-selection/")
+		req_anon_1.user = get_user_model()()
+		req_anon_1.META["HTTP_X_FORWARDED_FOR"] = "1.2.3.4"
+
+		req_anon_2 = rf.post("/api/kiosk/save-selection/")
+		req_anon_2.user = get_user_model()()
+		req_anon_2.META["HTTP_X_FORWARDED_FOR"] = "1.2.3.4, 10.0.0.1"
+
+		req_auth_1 = rf.post("/api/kiosk/save-selection/")
+		req_auth_1.user = self.invigilator
+		req_auth_1.META["HTTP_X_FORWARDED_FOR"] = "1.2.3.4"
+
+		self.assertFalse(throttle_request(req_anon_1, "test_bucket", limit=1, window_seconds=10))
+		self.assertTrue(throttle_request(req_anon_2, "test_bucket", limit=1, window_seconds=10))
+		self.assertFalse(throttle_request(req_auth_1, "test_bucket", limit=1, window_seconds=10))
+
+	def test_pdf_export_permissions(self):
+		url = reverse("download-students-pdf")
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 302)
+
+		self.other_user.profile.role = "kiosk"
+		self.other_user.profile.save()
+		self.client.force_login(self.other_user)
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 403)
+
+		self.client.force_login(self.invigilator)
+		response = self.client.get(f"{url}?status=voted")
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "application/pdf")
+		self.assertTrue(response.content.startswith(b"%PDF"))
+
 
 
